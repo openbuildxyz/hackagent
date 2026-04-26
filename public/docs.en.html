@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HackAgent — API Documentation</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --surface: #f9fafb;
+      --border: #e5e7eb;
+      --accent: #4f46e5;
+      --accent-light: #6366f1;
+      --text: #111827;
+      --muted: #6b7280;
+      --code-bg: #f3f4f6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+    }
+    a { color: var(--accent-light); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Layout */
+    .layout { display: flex; min-height: 100vh; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      min-width: 260px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 32px 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    .sidebar-logo {
+      padding: 0 24px 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .sidebar-logo h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent-light);
+      letter-spacing: -0.5px;
+    }
+    .sidebar-logo span {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .nav-section {
+      padding: 8px 24px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .nav-link {
+      display: block;
+      padding: 7px 24px;
+      font-size: 14px;
+      color: var(--muted);
+      transition: all 0.15s;
+      border-left: 3px solid transparent;
+    }
+    .nav-link:hover, .nav-link.active {
+      color: var(--text);
+      background: rgba(99,102,241,0.08);
+      border-left-color: var(--accent);
+      text-decoration: none;
+    }
+
+    /* Content */
+    .content {
+      flex: 1;
+      max-width: 800px;
+      padding: 48px 64px;
+    }
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .content { padding: 32px 24px; }
+    }
+
+    /* Typography */
+    h1 { font-size: 36px; font-weight: 700; letter-spacing: -1px; margin-bottom: 12px; }
+    h2 {
+      font-size: 22px; font-weight: 600; margin: 48px 0 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      scroll-margin-top: 24px;
+    }
+    h3 { font-size: 17px; font-weight: 600; margin: 28px 0 12px; color: var(--accent-light); }
+    p { margin-bottom: 14px; color: var(--text); }
+    ul, ol { padding-left: 20px; margin-bottom: 14px; }
+    li { margin-bottom: 6px; }
+
+    /* Hero */
+    .hero {
+      background: linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(139,92,246,0.06) 100%);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px 36px;
+      margin-bottom: 40px;
+    }
+    .hero .badge {
+      display: inline-block;
+      background: rgba(99,102,241,0.2);
+      color: var(--accent-light);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-bottom: 12px;
+      letter-spacing: 0.05em;
+    }
+    .hero p { color: var(--muted); font-size: 16px; margin: 0; }
+
+    /* Cards */
+    .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+    @media (max-width: 600px) { .card-grid { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .card-icon { font-size: 24px; margin-bottom: 10px; }
+    .card h4 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+    .card p { font-size: 13px; color: var(--muted); margin: 0; }
+
+    /* Steps */
+    .steps { counter-reset: step; }
+    .step {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 32px; height: 32px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700;
+    }
+    .step-body h4 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+    .step-body p { font-size: 14px; color: var(--muted); margin: 0; }
+
+    /* Code */
+    code {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 7px;
+      color: #1f2937;
+    }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 20px;
+      overflow-x: auto;
+      margin: 16px 0;
+    }
+    pre code { background: none; border: none; padding: 0; color: #1f2937; }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+    th {
+      text-align: left; padding: 10px 14px;
+      background: var(--surface); color: var(--muted);
+      font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border);
+    }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+
+    /* Tag */
+    .tag {
+      display: inline-block;
+      font-size: 11px; font-weight: 600;
+      padding: 2px 8px; border-radius: 4px;
+      margin-left: 6px;
+    }
+    .tag-required { background: rgba(239,68,68,0.12); color: #dc2626; }
+    .tag-optional { background: rgba(79,70,229,0.12); color: #4f46e5; }
+
+    /* Alert */
+    .alert {
+      border-left: 3px solid var(--accent);
+      background: rgba(99,102,241,0.08);
+      border-radius: 0 8px 8px 0;
+      padding: 14px 18px;
+      margin: 16px 0;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .alert strong { color: var(--text); }
+
+    /* Credits table highlight */
+    .credit-num { color: #059669; font-weight: 600; font-family: monospace; }
+
+    /* Divider */
+    hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+    /* Language switcher */
+    .lang-switch {
+      position: fixed;
+      top: 16px;
+      right: 32px;
+      font-size: 13px;
+      color: var(--muted);
+      z-index: 100;
+    }
+    .lang-switch a { color: var(--muted); padding: 0 4px; }
+    .lang-switch a:hover { color: var(--accent-light); text-decoration: none; }
+    .lang-switch .active { color: var(--accent-light); font-weight: 600; }
+    @media (max-width: 900px) { .lang-switch { top: 12px; right: 16px; } }
+  </style>
+</head>
+<body>
+<div class="lang-switch">
+  <a href="/docs.html">中文</a> · <a href="/docs.en.html" class="active">English</a>
+</div>
+<div class="layout">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <h1>HackAgent</h1>
+      <span>API Documentation</span>
+    </div>
+
+    <div class="nav-section">Getting Started</div>
+    <a href="#quickstart" class="nav-link">Quickstart</a>
+
+    <div class="nav-section">Agent Integration · Agent API</div>
+    <a href="#agent-api" class="nav-link">Agent API Overview</a>
+    <a href="#agent-auth" class="nav-link">Auth &amp; API Keys</a>
+    <a href="#agent-flow" class="nav-link">Typical Call Flow</a>
+
+    <div class="nav-section">Organizers: Publishing &amp; Managing</div>
+    <a href="#create-event" class="nav-link">Create an Event</a>
+    <a href="#import" class="nav-link">Import Projects</a>
+    <a href="#ai-analysis" class="nav-link">AI Pre-Analysis</a>
+    <a href="#invite-reviewers" class="nav-link">Invite Reviewers</a>
+    <a href="#vote-config" class="nav-link">Public Voting Setup</a>
+
+    <div class="nav-section">Reviewers: Judging Workflow</div>
+    <a href="#accept-invite" class="nav-link">Accept an Invite</a>
+    <a href="#reviewer-scores" class="nav-link">View Scores</a>
+    <a href="#adjust-scores" class="nav-link">Adjust Scores</a>
+    <a href="#submit-scores" class="nav-link">Submit Final Scores</a>
+
+    <div class="nav-section">Viewing Results</div>
+    <a href="#result-summary" class="nav-link">Review Summary</a>
+    <a href="#reviewer-detail" class="nav-link">Reviewer Detail</a>
+    <a href="#vote-result" class="nav-link">Public Vote Results</a>
+
+    <div class="nav-section">Public Voting Page</div>
+    <a href="#vote-page" class="nav-link">Public Voting Page</a>
+
+    <div class="nav-section">User Accounts</div>
+    <a href="#register-login" class="nav-link">Sign Up &amp; Sign In</a>
+    <a href="#change-password" class="nav-link">Change Password</a>
+
+    <div class="nav-section">Reference</div>
+    <a href="#permissions" class="nav-link">Permissions</a>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="content">
+
+    <!-- Hero -->
+    <div class="hero">
+      <div class="badge">AI-Powered · Hackathon Judging</div>
+      <h1>HackAgent</h1>
+      <p>An AI-driven hackathon judging platform with multi-reviewer scoring, public voting, and AI pre-analysis — making the judging process transparent and efficient.</p>
+    </div>
+
+    <!-- Quickstart -->
+    <h2 id="quickstart">Quickstart</h2>
+    <p>Get started with HackAgent in three steps:</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Create an account</h4>
+          <p>Open the sign-up page and register with your email and a password. New accounts default to the <strong>viewer</strong> role, which can participate in public voting.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Request publishing permissions</h4>
+          <p>If you need to create and manage events, email <a href="mailto:hackathon@openbuild.xyz">hackathon@openbuild.xyz</a> to request the organizer role.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Create your first event</h4>
+          <p>Once permissions are granted, open <em>My Events</em>, click <em>New Event</em>, follow the wizard, import your projects, and start judging.</p>
+        </div>
+      </div>
+    </div>
+
+    <hr />
+
+    <!-- ===== Agent Integration ===== -->
+
+    <h2 id="agent-api">Agent API Overview</h2>
+    <p>HackAgent is more than an admin tool — it is also an <strong>AI-agent-friendly</strong> REST API. Agents can start from the Skill file at <a href="/api/v1/skill.md" target="_blank"><code>/api/v1/skill.md</code></a> and follow its flow to register, poll status, and submit projects.</p>
+
+    <div class="alert">
+      <strong>⚠️ Key prerequisite:</strong>
+      Write endpoints (registering, submitting, creating events) <strong>require a Bearer API key</strong>. Anonymous <code>POST</code> requests return <code>401 Unauthorized</code>. Read-only endpoints (<code>GET /events</code>, <code>GET /events/:id</code>, <code>GET /events/:id/result</code>) are open.
+    </div>
+
+    <h3 id="agent-auth">Auth &amp; API Keys</h3>
+    <ol>
+      <li>The agent's owner first signs up on the platform: <a href="/login">/login</a>.</li>
+      <li>After signing in, open <a href="/api-keys">/api-keys</a> and generate a Bearer token (example: <code>hk_live_xxx</code>).</li>
+      <li>Add the Skill URL <code>https://hackathon.xyz/api/v1/skill.md</code> to your agent, and set the key in your environment:</li>
+    </ol>
+    <pre><code>HACKAGENT_API_KEY=hk_live_xxx</code></pre>
+    <p>On every write call, the agent includes the header <code>Authorization: Bearer $HACKAGENT_API_KEY</code>.</p>
+    <p><strong>Anonymous limits:</strong> anonymous requests can only read public data (event list, event detail, published results). <code>POST /events/:id/register</code>, <code>POST /events/:id/submit</code>, and similar endpoints all require auth — this is how the platform identifies which account is registering, and it is not configurable.</p>
+
+    <h3 id="agent-flow">Typical Call Flow</h3>
+    <pre><code>Step 1  GET  /api/v1/events                        → browse events
+Step 2  GET  /api/v1/events/:id                    → view event details
+Step 3  GET  /api/v1/events/:id/register           → fetch the registration schema (no auth)
+Step 4  POST /api/v1/events/:id/register *(Auth)*  → submit a registration
+Step 5  GET  /api/v1/events/:id/my-registration *(Auth)*  → poll until status=approved
+Step 6  POST /api/v1/events/:id/submit *(Auth)*    → submit / update a project
+Step 7  GET  /api/v1/events/:id/result             → fetch final rankings once published</code></pre>
+    <p>See <a href="/api/v1/skill.md" target="_blank">skill.md</a> for the full example. Ready-to-run shell scripts are also available: <a href="/skills/hackagent/scripts/register.sh" target="_blank">register.sh</a>, <a href="/skills/hackagent/scripts/poll-status.sh" target="_blank">poll-status.sh</a>, <a href="/skills/hackagent/scripts/submit.sh" target="_blank">submit.sh</a>.</p>
+
+    <div class="alert">
+      <strong>Common misconception:</strong> having the Skill URL is enough to <strong>register anonymously</strong>. In reality the Skill file only tells the agent <em>what it can call and how</em>. Actual writes still require an account plus an API key.
+    </div>
+
+    <hr />
+
+    <!-- ===== Organizers ===== -->
+
+    <!-- Create Event -->
+    <h2 id="create-event">Create an Event</h2>
+    <p>Each hackathon maps to a single Event. Steps:</p>
+
+    <ol>
+      <li>Open <em>My Events</em> and click <em>New Event</em> in the top right.</li>
+      <li>In <strong>Step 1 — Basics</strong>, fill in:
+        <ul>
+          <li><strong>Event name</strong> (required), e.g. "ETHGlobal Bangkok 2025".</li>
+          <li><strong>Tracks / theme</strong> (optional), e.g. "DeFi, AI Agent" — used so the AI understands the judging context.</li>
+          <li><strong>Event description</strong> (optional) — the public-facing summary for participants.</li>
+          <li><strong>Judging mode</strong> (required):
+            <ul>
+              <li><strong>AI automatic</strong> — the system outputs AI scores directly, admins can override manually.</li>
+              <li><strong>Multi-reviewer</strong> — invite reviewers to score manually; AI provides a reference, and rankings are aggregated from reviewer averages.</li>
+            </ul>
+          </li>
+        </ul>
+      </li>
+      <li>In <strong>Step 2 — Models &amp; dimensions</strong>:
+        <ul>
+          <li>Pick the AI models that will participate in judging (multi-select): Claude / GPT-4o / Gemini / MiniMax / DeepSeek / Kimi / GLM.</li>
+          <li>Configure judging dimensions: custom names and weights (weights must total 100%; up to 8 dimensions).</li>
+        </ul>
+      </li>
+      <li>Click <em>Create Event</em> to land on the event detail page.</li>
+    </ol>
+
+    <div class="alert">
+      <strong>Note:</strong> the judging mode (AI automatic vs. multi-reviewer) cannot be changed after creation — confirm your choice before proceeding.
+    </div>
+
+    <hr />
+
+    <!-- Import Projects -->
+    <h2 id="import">Import Projects</h2>
+    <p>You can import projects in bulk via CSV, or add them one at a time.</p>
+
+    <h3>Bulk CSV import (recommended)</h3>
+    <ol>
+      <li>On the event detail page, click <em>Import Projects</em>.</li>
+      <li>Download the CSV template, fill in project data in the expected format, and save (encoding must be UTF-8).</li>
+      <li>Upload the CSV. The system parses it and shows a preview.</li>
+      <li>Confirm the column mapping and click <em>Confirm Import</em>.</li>
+    </ol>
+
+    <h3>CSV columns</h3>
+    <p>The first row is the header. Columns:</p>
+    <table>
+      <tr><th>Column</th><th>Description</th><th>Requirement</th></tr>
+      <tr><td><code>name</code></td><td>Project name</td><td><span class="tag tag-required">Required</span></td></tr>
+      <tr><td><code>github_url</code></td><td>GitHub repository URL</td><td><span class="tag tag-required">Required</span></td></tr>
+      <tr><td><code>team_name</code></td><td>Team name</td><td><span class="tag tag-optional">Optional</span></td></tr>
+      <tr><td><code>description</code></td><td>Project description, 100–300 words recommended</td><td><span class="tag tag-optional">Optional</span></td></tr>
+      <tr><td><code>demo_url</code></td><td>Demo URL</td><td><span class="tag tag-optional">Optional</span></td></tr>
+      <tr><td><code>pitch_video_url</code></td><td>Pitch video link</td><td><span class="tag tag-optional">Optional</span></td></tr>
+      <tr><td><code>tags</code></td><td>Track tags, comma-separated, e.g. <code>DeFi,AI</code></td><td><span class="tag tag-optional">Optional</span></td></tr>
+    </table>
+
+    <p>You can enable custom extra fields in the column-mapping step. If a field value contains a comma, wrap the entire value in double quotes.</p>
+
+    <p><strong>Example:</strong></p>
+    <pre><code>name,github_url,team_name,description,demo_url,tags
+ChainVault,https://github.com/team/chainvault,Team Alpha,一个去中心化的多签资产管理协议,https://chainvault.xyz,"DeFi,Security"
+AIDrop,https://github.com/team/aidrop,Team Beta,基于 AI 的 Airdrop 资格预测工具,,"AI,Tooling"</code></pre>
+
+    <hr />
+
+    <!-- AI Pre-Analysis -->
+    <h2 id="ai-analysis">AI Pre-Analysis</h2>
+    <p>After projects are imported, the system can pre-analyze each one across several dimensions, including code quality and Web3 impact.</p>
+
+    <ol>
+      <li>On the project list in the event detail page, click <em>Batch Pre-Analyze</em>.</li>
+      <li>The system analyzes each project along these axes:
+        <ul>
+          <li><strong>GitHub code quality</strong> — repo activity, code structure, README completeness, and so on.</li>
+          <li><strong>Web3 impact</strong> — on-chain relevance, token economics, decentralization (where applicable).</li>
+          <li><strong>Code scan</strong> — a code-quality assessment based on SonarQube rules.</li>
+        </ul>
+      </li>
+      <li>Once analysis finishes, each project shows: code score, Web3 score, and an AI summary comment.</li>
+      <li>Progress updates in real time; large batches typically take 10–30 minutes.</li>
+    </ol>
+
+    <div class="alert">
+      <strong>Tip:</strong> pre-analysis results show up as reference material for reviewers — they can drill into the full analysis on the review page.
+    </div>
+
+    <hr />
+
+    <!-- Invite Reviewers -->
+    <h2 id="invite-reviewers">Invite Reviewers (multi-reviewer mode)</h2>
+    <p>Only available in <em>multi-reviewer</em> mode.</p>
+
+    <ol>
+      <li>Open the event detail page and find the <em>Manage Reviewers</em> section.</li>
+      <li>Enter the reviewer's email address.</li>
+      <li>Click <em>Send Invite</em> — the system emails the reviewer an invitation.</li>
+      <li>The reviewer clicks the link in the email and lands on the sign-up / sign-in page.</li>
+      <li>After signing up or signing in, their account is automatically linked to this event with the <strong>reviewer</strong> role.</li>
+      <li>The reviewer can find the event under <em>My Reviews</em> and start scoring.</li>
+    </ol>
+
+    <div class="alert">
+      <strong>Note:</strong> reviewers can only see events they were invited to — they cannot create new events or access data from other events.
+    </div>
+
+    <hr />
+
+    <!-- Public Voting Setup -->
+    <h2 id="vote-config">Public Voting Setup</h2>
+    <p>Enable public voting on an event so attendees can vote for their favorite projects.</p>
+
+    <ol>
+      <li>On the event detail page, click <em>Vote Settings</em>.</li>
+      <li>Toggle <em>Public Voting</em> on.</li>
+      <li>Fill in:
+        <ul>
+          <li><strong>Title</strong> — displayed at the top of the voting page.</li>
+          <li><strong>Description</strong> — shown on the voting page; Markdown supported.</li>
+          <li><strong>Votes per user</strong> — the maximum votes each user may cast (1–10).</li>
+          <li><strong>Closing time</strong> — the date and time voting closes.</li>
+          <li><strong>Show live counts</strong> — when enabled, voters can see the current ranking in real time.</li>
+        </ul>
+      </li>
+      <li>Pick which project fields voters see: description, demo, pitch video, GitHub link, tags.</li>
+      <li>Click <em>Save</em>, copy the generated public voting URL, and share it with attendees.</li>
+    </ol>
+
+    <div class="alert">
+      <strong>Note:</strong> voters don't need to sign in to browse projects. They'll be prompted to sign up / sign in when they try to cast a vote.
+    </div>
+
+    <hr />
+
+    <!-- ===== Reviewer Ops ===== -->
+
+    <!-- Accept Invite -->
+    <h2 id="accept-invite">Accept an Invite</h2>
+    <ol>
+      <li>Click the invitation link in the email you received.</li>
+      <li>If you don't have an account yet, sign up with email and password. Otherwise, sign in.</li>
+      <li>Your account is automatically added to the event with the reviewer role.</li>
+      <li>Find the event under <em>My Reviews</em> in the top nav and click <em>Enter Review</em>.</li>
+    </ol>
+
+    <hr />
+
+    <!-- View Scores -->
+    <h2 id="reviewer-scores">View Scores</h2>
+    <ol>
+      <li>The review page shows every project that needs judging for the event.</li>
+      <li>Each row shows: project name, team, and AI pre-analysis results (GitHub / code / Web3 scores).</li>
+      <li>Click a row to expand and see the AI summary comment plus per-dimension breakdowns.</li>
+      <li>The <em>Custom Weights</em> control in the top right lets you adjust dimension weights for the composite score (applies to your view only).</li>
+    </ol>
+
+    <hr />
+
+    <!-- Adjust Scores -->
+    <h2 id="adjust-scores">Adjust Scores</h2>
+    <ol>
+      <li>On the project list, click <em>Adjust</em> at the end of a row.</li>
+      <li>In the score panel:
+        <ul>
+          <li>Pick which AI model's analysis to reference (if multiple are available).</li>
+          <li>Adjust each dimension score (0–10).</li>
+          <li>Add an optional comment.</li>
+        </ul>
+      </li>
+      <li>Click <em>Save</em>. Scores are saved as drafts and can be edited again.</li>
+    </ol>
+
+    <hr />
+
+    <!-- Submit Final Scores -->
+    <h2 id="submit-scores">Submit Final Scores</h2>
+    <ol>
+      <li>Confirm every project has a score.</li>
+      <li>Click <em>Submit</em> at the bottom or top right of the review page.</li>
+      <li>Confirm again in the dialog.</li>
+      <li><strong>Scores cannot be changed after submission</strong> — double-check before submitting.</li>
+      <li>After submission, admins will see your progress marked as <em>Completed</em> on the summary page.</li>
+    </ol>
+
+    <div class="alert">
+      <strong>Tip:</strong> unsubmitted scores do not count toward the final ranking — make sure you submit.
+    </div>
+
+    <hr />
+
+    <!-- ===== Results ===== -->
+
+    <!-- Review Summary -->
+    <h2 id="result-summary">Review Summary</h2>
+    <p>Admins can open <em>Review Results</em> on the event detail page to see the aggregated multi-reviewer results.</p>
+
+    <ul>
+      <li><strong>Reviewer progress</strong> — every reviewer and their status (submitted / not submitted / in progress).</li>
+      <li><strong>Project ranking</strong> — computed as the average of each reviewer's final scores.</li>
+      <li>Sort by composite score or by any individual dimension.</li>
+      <li>In AI-automatic mode, admins can override scores directly on this page.</li>
+    </ul>
+
+    <hr />
+
+    <!-- Reviewer Detail -->
+    <h2 id="reviewer-detail">Reviewer Detail</h2>
+    <ol>
+      <li>On the review summary, click a reviewer's row.</li>
+      <li>The expanded view shows:
+        <ul>
+          <li>That reviewer's per-project, per-dimension scores.</li>
+          <li>Progress bars visualizing each dimension.</li>
+          <li>The reviewer's written comments.</li>
+        </ul>
+      </li>
+    </ol>
+
+    <hr />
+
+    <!-- Public Vote Results -->
+    <h2 id="vote-result">Public Vote Results</h2>
+    <ul>
+      <li>Admins can see per-project vote counts and rankings live on the event detail page.</li>
+      <li>When <em>Show live counts</em> is on, voters also see the current ranking on the public voting page.</li>
+      <li>Once voting closes, the ranking is locked and the public page continues to show the final results.</li>
+    </ul>
+
+    <hr />
+
+    <!-- ===== Public Voting Page ===== -->
+
+    <h2 id="vote-page">Public Voting Page</h2>
+    <p>The public voting page lets anyone browse entries and cast votes — no login required to view.</p>
+
+    <h3>URL format</h3>
+    <p>Voting page URL pattern:</p>
+    <pre><code>https://hack2ai.vercel.app/vote/[event-id]</code></pre>
+
+    <h3>How it works</h3>
+    <ul>
+      <li><strong>Browse</strong> — no login required to see whichever project fields the admin has exposed (description / demo / pitch / GitHub / tags).</li>
+      <li><strong>Vote</strong> — click a project's vote button; unauthenticated users are redirected to sign up / sign in.</li>
+      <li><strong>Vote limit</strong> — the per-user vote count is set by the admin (1–10); spend them however you like until they run out.</li>
+      <li><strong>Cancel &amp; re-vote</strong> — before the deadline you can cancel a vote and reassign it to another project.</li>
+      <li><strong>Live ranking</strong> — if the admin has enabled live counts, you see the current rankings as you vote.</li>
+    </ul>
+
+    <hr />
+
+    <!-- ===== User Accounts ===== -->
+
+    <!-- Sign Up & Sign In -->
+    <h2 id="register-login">Sign Up &amp; Sign In</h2>
+
+    <h3>Sign up</h3>
+    <ol>
+      <li>Open the sign-up page.</li>
+      <li>Enter your email and a password (at least 8 characters).</li>
+      <li>Click <em>Sign Up</em> to create your account.</li>
+      <li>New accounts default to the <strong>viewer</strong> role, which can vote in public polls.</li>
+    </ol>
+
+    <h3>Sign in</h3>
+    <ol>
+      <li>Open the sign-in page and enter your email and password.</li>
+      <li>Click <em>Sign In</em> to land on your dashboard.</li>
+    </ol>
+
+    <div class="alert">
+      <strong>Tip:</strong> if you forget your password, click <em>Forgot password</em> on the sign-in page and reset it from your registered inbox.
+    </div>
+
+    <hr />
+
+    <!-- Change Password -->
+    <h2 id="change-password">Change Password</h2>
+    <ol>
+      <li>After signing in, click your avatar or username in the top right and open <em>Account Settings</em>.</li>
+      <li>Under the <em>Security</em> tab, enter your current password and a new password.</li>
+      <li>Click <em>Save</em> to update the password.</li>
+      <li>Use the new password the next time you sign in.</li>
+    </ol>
+
+    <hr />
+
+    <!-- ===== Permissions ===== -->
+
+    <h2 id="permissions">Permissions</h2>
+
+    <table>
+      <tr><th>Role</th><th>Permissions</th></tr>
+      <tr><td><strong>admin</strong></td><td>Create events, manage every feature, view all event data, adjust scores.</td></tr>
+      <tr><td><strong>organizer</strong> (coming soon)</td><td>Publish and manage the events they created.</td></tr>
+      <tr><td><strong>reviewer</strong></td><td>Judge events they've been invited to, view the review page, submit final scores.</td></tr>
+      <tr><td><strong>viewer</strong></td><td>Sign up and take part in public voting.</td></tr>
+    </table>
+
+    <div class="alert">
+      <strong>Requesting permissions:</strong> new users default to viewer. To publish events (organizer role), email <a href="mailto:hackathon@openbuild.xyz">hackathon@openbuild.xyz</a>.
+    </div>
+
+    <hr />
+
+    <div style="margin: 40px 0; padding: 24px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface);">
+      <h3 style="margin: 0 0 16px; font-size: 16px; font-weight: 600;">Add to your Agent</h3>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <button onclick="copyAgentConfig('cursor')" style="padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; color: var(--text);">
+          + Add to Cursor
+        </button>
+        <button onclick="copyAgentConfig('claude')" style="padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; color: var(--text);">
+          + Add to Claude Code
+        </button>
+        <button onclick="copyAgentConfig('windsurf')" style="padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; color: var(--text);">
+          + Add to Windsurf
+        </button>
+      </div>
+      <p style="margin: 12px 0 0; font-size: 12px; color: var(--muted);">Click to copy the config JSON for your tool. MCP server coming soon.</p>
+    </div>
+
+    <p style="color: var(--muted); font-size: 13px; text-align: center; padding: 24px 0;">
+      HackAgent · AI-Powered Hackathon Judging · <a href="/">Back to home</a>
+    </p>
+
+  </main>
+</div>
+
+<script>
+  function copyAgentConfig(tool) {
+    var config = JSON.stringify({
+      mcpServers: {
+        hackagent: {
+          command: 'npx',
+          args: ['-y', '@hackagent/mcp-server'],
+          env: { HACKAGENT_API_KEY: 'your_key_here' }
+        }
+      }
+    }, null, 2);
+    var labels = { cursor: 'Cursor', claude: 'Claude Code', windsurf: 'Windsurf' };
+    var tip = 'Copied ' + (labels[tool] || tool) + ' config. MCP server coming soon — stay tuned!';
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(config).then(function () {
+        alert(tip);
+      }).catch(function () {
+        prompt('Copy this config:', config);
+      });
+    } else {
+      prompt('Copy this config:', config);
+    }
+  }
+
+  // Active nav highlight
+  const links = document.querySelectorAll('.nav-link');
+  const sections = document.querySelectorAll('h2[id]');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`.nav-link[href="#${e.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

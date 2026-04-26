@@ -1,0 +1,58 @@
+{
+  "name": "HackAgent",
+  "description": "AI-powered hackathon platform. Organizers create events, AI models review submissions, results are published as shareable reports.",
+  "url": "https://hackagent.vercel.app",
+  "version": "1.0.0",
+  "provider": {
+    "organization": "OpenBuild",
+    "url": "https://openbuild.xyz"
+  },
+  "capabilities": {
+    "streaming": false,
+    "pushNotifications": false,
+    "stateTransitionHistory": true
+  },
+  "authentication": {
+    "schemes": ["bearer"],
+    "billions_did": true
+  },
+  "skills": [
+    {
+      "id": "register-event",
+      "name": "Register for Hackathon",
+      "description": "Register a team or individual for a hackathon event. Supports DID-verified identity for Sybil resistance.",
+      "tags": ["hackathon", "registration", "web3"],
+      "examples": [
+        "Register my team for the ETHGlobal Cannes 2026 hackathon",
+        "Sign up for the Monad Hackathon with DID verification"
+      ],
+      "inputModes": ["text"],
+      "outputModes": ["text"]
+    },
+    {
+      "id": "submit-project",
+      "name": "Submit Project",
+      "description": "Submit a hackathon project with GitHub URL, demo link, and description for AI review.",
+      "tags": ["hackathon", "submission", "github"],
+      "examples": [
+        "Submit my project at github.com/me/my-project to the active hackathon"
+      ],
+      "inputModes": ["text"],
+      "outputModes": ["text"]
+    },
+    {
+      "id": "get-results",
+      "name": "Get Review Results",
+      "description": "Retrieve AI review scores, rankings, and judge comments for a submitted project or event.",
+      "tags": ["hackathon", "results", "scores"],
+      "examples": [
+        "What score did my project get?",
+        "Show the leaderboard for the ETHGlobal Cannes hackathon"
+      ],
+      "inputModes": ["text"],
+      "outputModes": ["text"]
+    }
+  ],
+  "defaultInputMode": "text",
+  "defaultOutputMode": "text"
+}

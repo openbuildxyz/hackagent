@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "app/api/**": {
+      "maxDuration": 300
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/transition-status",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

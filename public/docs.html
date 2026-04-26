@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HackAgent — 使用文档</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --surface: #f9fafb;
+      --border: #e5e7eb;
+      --accent: #4f46e5;
+      --accent-light: #6366f1;
+      --text: #111827;
+      --muted: #6b7280;
+      --code-bg: #f3f4f6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+    }
+    a { color: var(--accent-light); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Layout */
+    .layout { display: flex; min-height: 100vh; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      min-width: 260px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 32px 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    .sidebar-logo {
+      padding: 0 24px 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .sidebar-logo h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent-light);
+      letter-spacing: -0.5px;
+    }
+    .sidebar-logo span {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .nav-section {
+      padding: 8px 24px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .nav-link {
+      display: block;
+      padding: 7px 24px;
+      font-size: 14px;
+      color: var(--muted);
+      transition: all 0.15s;
+      border-left: 3px solid transparent;
+    }
+    .nav-link:hover, .nav-link.active {
+      color: var(--text);
+      background: rgba(99,102,241,0.08);
+      border-left-color: var(--accent);
+      text-decoration: none;
+    }
+
+    /* Content */
+    .content {
+      flex: 1;
+      max-width: 800px;
+      padding: 48px 64px;
+    }
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .content { padding: 32px 24px; }
+    }
+
+    /* Typography */
+    h1 { font-size: 36px; font-weight: 700; letter-spacing: -1px; margin-bottom: 12px; }
+    h2 {
+      font-size: 22px; font-weight: 600; margin: 48px 0 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      scroll-margin-top: 24px;
+    }
+    h3 { font-size: 17px; font-weight: 600; margin: 28px 0 12px; color: var(--accent-light); }
+    p { margin-bottom: 14px; color: var(--text); }
+    ul, ol { padding-left: 20px; margin-bottom: 14px; }
+    li { margin-bottom: 6px; }
+
+    /* Hero */
+    .hero {
+      background: linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(139,92,246,0.06) 100%);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px 36px;
+      margin-bottom: 40px;
+    }
+    .hero .badge {
+      display: inline-block;
+      background: rgba(99,102,241,0.2);
+      color: var(--accent-light);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-bottom: 12px;
+      letter-spacing: 0.05em;
+    }
+    .hero p { color: var(--muted); font-size: 16px; margin: 0; }
+
+    /* Cards */
+    .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+    @media (max-width: 600px) { .card-grid { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .card-icon { font-size: 24px; margin-bottom: 10px; }
+    .card h4 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+    .card p { font-size: 13px; color: var(--muted); margin: 0; }
+
+    /* Steps */
+    .steps { counter-reset: step; }
+    .step {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 32px; height: 32px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700;
+    }
+    .step-body h4 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+    .step-body p { font-size: 14px; color: var(--muted); margin: 0; }
+
+    /* Code */
+    code {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 7px;
+      color: #1f2937;
+    }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 20px;
+      overflow-x: auto;
+      margin: 16px 0;
+    }
+    pre code { background: none; border: none; padding: 0; color: #1f2937; }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+    th {
+      text-align: left; padding: 10px 14px;
+      background: var(--surface); color: var(--muted);
+      font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border);
+    }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+
+    /* Tag */
+    .tag {
+      display: inline-block;
+      font-size: 11px; font-weight: 600;
+      padding: 2px 8px; border-radius: 4px;
+      margin-left: 6px;
+    }
+    .tag-required { background: rgba(239,68,68,0.12); color: #dc2626; }
+    .tag-optional { background: rgba(79,70,229,0.12); color: #4f46e5; }
+
+    /* Alert */
+    .alert {
+      border-left: 3px solid var(--accent);
+      background: rgba(99,102,241,0.08);
+      border-radius: 0 8px 8px 0;
+      padding: 14px 18px;
+      margin: 16px 0;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .alert strong { color: var(--text); }
+
+    /* Credits table highlight */
+    .credit-num { color: #059669; font-weight: 600; font-family: monospace; }
+
+    /* Divider */
+    hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+    /* Language switcher */
+    .lang-switch {
+      position: fixed;
+      top: 16px;
+      right: 32px;
+      font-size: 13px;
+      color: var(--muted);
+      z-index: 100;
+    }
+    .lang-switch a { color: var(--muted); padding: 0 4px; }
+    .lang-switch a:hover { color: var(--accent-light); text-decoration: none; }
+    .lang-switch .active { color: var(--accent-light); font-weight: 600; }
+    @media (max-width: 900px) { .lang-switch { top: 12px; right: 16px; } }
+  </style>
+</head>
+<body>
+<div class="lang-switch">
+  <a href="/docs.html" class="active">中文</a> · <a href="/docs.en.html">English</a>
+</div>
+<div class="layout">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <h1>HackAgent</h1>
+      <span>使用文档 · User Docs</span>
+    </div>
+
+    <div class="nav-section">快速开始</div>
+    <a href="#quickstart" class="nav-link">快速开始</a>
+
+    <div class="nav-section">Agent 接入 · Agent API</div>
+    <a href="#agent-api" class="nav-link">Agent API 总览</a>
+    <a href="#agent-auth" class="nav-link">鉴权与 API Key</a>
+    <a href="#agent-flow" class="nav-link">典型调用流</a>
+
+    <div class="nav-section">组织方：发布与管理</div>
+    <a href="#create-event" class="nav-link">创建活动</a>
+    <a href="#import" class="nav-link">导入项目</a>
+    <a href="#ai-analysis" class="nav-link">AI 预分析</a>
+    <a href="#invite-reviewers" class="nav-link">邀请评委</a>
+    <a href="#vote-config" class="nav-link">公开投票配置</a>
+
+    <div class="nav-section">评委：评审操作</div>
+    <a href="#accept-invite" class="nav-link">接受邀请</a>
+    <a href="#reviewer-scores" class="nav-link">查看评分</a>
+    <a href="#adjust-scores" class="nav-link">调整分数</a>
+    <a href="#submit-scores" class="nav-link">提交最终分</a>
+
+    <div class="nav-section">查看结果</div>
+    <a href="#result-summary" class="nav-link">评审结果汇总</a>
+    <a href="#reviewer-detail" class="nav-link">评委详情</a>
+    <a href="#vote-result" class="nav-link">公开投票结果</a>
+
+    <div class="nav-section">公开投票页</div>
+    <a href="#vote-page" class="nav-link">公开投票页</a>
+
+    <div class="nav-section">用户账号</div>
+    <a href="#register-login" class="nav-link">注册与登录</a>
+    <a href="#change-password" class="nav-link">修改密码</a>
+
+    <div class="nav-section">参考</div>
+    <a href="#permissions" class="nav-link">权限说明</a>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="content">
+
+    <!-- Hero -->
+    <div class="hero">
+      <div class="badge">AI-Powered · Hackathon Judging</div>
+      <h1>HackAgent</h1>
+      <p>AI 驱动的 Hackathon 评审平台。支持多人评审、公开投票、AI 预分析，让评审流程透明高效。</p>
+    </div>
+
+    <!-- 快速开始 -->
+    <h2 id="quickstart">快速开始</h2>
+    <p>3 步上手 HackAgent：</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>注册账号</h4>
+          <p>访问平台注册页面，填写邮箱和密码完成注册。新账号默认角色为 <strong>viewer</strong>，可参与公开投票。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>联系管理员获取发布权限</h4>
+          <p>如需创建和管理活动，请联系 <a href="mailto:hackathon@openbuild.xyz">hackathon@openbuild.xyz</a> 申请 organizer 权限。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>创建第一个活动</h4>
+          <p>获得权限后进入「我的活动」，点击「新建活动」，按向导完成配置，导入项目即可开始评审。</p>
+        </div>
+      </div>
+    </div>
+
+    <hr />
+
+    <!-- ===== Agent 接入 ===== -->
+
+    <h2 id="agent-api">Agent API 总览</h2>
+    <p>HackAgent 不只是后台工具，同时是一个对 <strong>AI Agent 友好</strong>的 REST API。Agent 可以从 <a href="/api/v1/skill.md" target="_blank"><code>/api/v1/skill.md</code></a> 这份 Skill 文件开始，按流程调用即可完成报名、查询状态、提交项目。</p>
+
+    <div class="alert">
+      <strong>⚠️ 关键前提：</strong>
+      写入类接口（报名、提交、创建活动）<strong>必须带 Bearer API Key</strong>，匿名直接 <code>POST</code> 会返回 <code>401 Unauthorized</code>。只读接口（<code>GET /events</code>、<code>GET /events/:id</code>、<code>GET /events/:id/result</code>）开放访问。
+    </div>
+
+    <h3 id="agent-auth">鉴权与 API Key</h3>
+    <ol>
+      <li>Agent 的「主人」先在平台注册账号：<a href="/login">/login</a>。</li>
+      <li>登录后进入 <a href="/api-keys">/api-keys</a>，生成一把 Bearer Token（示例：<code>hk_live_xxx</code>）。</li>
+      <li>把 Skill URL <code>https://hackathon.xyz/api/v1/skill.md</code> 加入你的 Agent，并在环境变量里配置：</li>
+    </ol>
+    <pre><code>HACKAGENT_API_KEY=hk_live_xxx</code></pre>
+    <p>Agent 每次调写入接口时带上 <code>Authorization: Bearer $HACKAGENT_API_KEY</code> 即可。</p>
+    <p><strong>匿名调用限制：</strong>只能读公开数据（活动列表、活动详情、已公开的评审结果）。<code>POST /events/:id/register</code>、<code>POST /events/:id/submit</code> 等均需鉴权——这是平台识别「是哪个账号在报名」的前提，不能也不会放开。</p>
+
+    <h3 id="agent-flow">典型调用流</h3>
+    <pre><code>Step 1  GET  /api/v1/events                        → 浏览活动
+Step 2  GET  /api/v1/events/:id                    → 查看活动详情
+Step 3  GET  /api/v1/events/:id/register           → 取报名字段 schema（免鉴权）
+Step 4  POST /api/v1/events/:id/register *(Auth)*  → 提交报名
+Step 5  GET  /api/v1/events/:id/my-registration *(Auth)*  → 轮询直到 status=approved
+Step 6  POST /api/v1/events/:id/submit *(Auth)*    → 提交 / 更新项目
+Step 7  GET  /api/v1/events/:id/result             → 公布后取最终排名</code></pre>
+    <p>完整示例请看 <a href="/api/v1/skill.md" target="_blank">skill.md</a>。另有可直接运行的 shell 脚本：<a href="/skills/hackagent/scripts/register.sh" target="_blank">register.sh</a>、<a href="/skills/hackagent/scripts/poll-status.sh" target="_blank">poll-status.sh</a>、<a href="/skills/hackagent/scripts/submit.sh" target="_blank">submit.sh</a>。</p>
+
+    <div class="alert">
+      <strong>常见误解：</strong> 拿到 Skill URL 就能<strong>匿名直接报名</strong>。事实是 Skill 文件只是告诉 Agent <em>能调什么、要怎么调</em>，真正的写入动作依然需要账号 + API Key。
+    </div>
+
+    <hr />
+
+    <!-- ===== 组织方 ===== -->
+
+    <!-- 创建活动 -->
+    <h2 id="create-event">创建活动</h2>
+    <p>每次 Hackathon 对应一个活动（Event）。创建流程如下：</p>
+
+    <ol>
+      <li>进入「我的活动」，点击右上角「新建活动」按钮。</li>
+      <li>在 <strong>Step 1 — 基本信息</strong> 中填写：
+        <ul>
+          <li><strong>活动名称</strong>（必填）：如 "ETHGlobal Bangkok 2025"</li>
+          <li><strong>赛道 / 主题</strong>（可选）：如 "DeFi、AI Agent"，用于 AI 理解评审背景</li>
+          <li><strong>活动描述</strong>（可选）：面向参与者的公开介绍</li>
+          <li><strong>评审模式</strong>（必选）：
+            <ul>
+              <li><strong>AI 自动</strong>：系统直接输出 AI 评分，管理员可人工覆盖</li>
+              <li><strong>多人评审</strong>：邀请评委手动打分，AI 提供参考，支持汇总平均分排名</li>
+            </ul>
+          </li>
+        </ul>
+      </li>
+      <li>在 <strong>Step 2 — 模型与维度</strong> 中：
+        <ul>
+          <li>选择参与评审的 AI 模型（可多选）：Claude / GPT-4o / Gemini / MiniMax / DeepSeek / Kimi / GLM</li>
+          <li>配置评审维度：可自定义名称和权重（权重之和须等于 100%，最多 8 个维度）</li>
+        </ul>
+      </li>
+      <li>点击「创建活动」，跳转到活动详情页。</li>
+    </ol>
+
+    <div class="alert">
+      <strong>注意：</strong>评审模式（AI自动 / 多人评审）创建后不可更改，请提前确认。
+    </div>
+
+    <hr />
+
+    <!-- 导入项目 -->
+    <h2 id="import">导入项目</h2>
+    <p>支持 CSV 批量导入，也可逐条手动添加。</p>
+
+    <h3>CSV 批量导入（推荐）</h3>
+    <ol>
+      <li>在活动详情页点击「导入项目」按钮。</li>
+      <li>下载 CSV 模板，按格式填写项目信息后保存（编码须为 UTF-8）。</li>
+      <li>上传 CSV 文件，系统自动解析并预览数据。</li>
+      <li>确认映射关系无误后点击「确认导入」。</li>
+    </ol>
+
+    <h3>CSV 字段说明</h3>
+    <p>第一行为表头，字段如下：</p>
+    <table>
+      <tr><th>字段名</th><th>说明</th><th>要求</th></tr>
+      <tr><td><code>name</code></td><td>项目名称</td><td><span class="tag tag-required">必填</span></td></tr>
+      <tr><td><code>github_url</code></td><td>GitHub 仓库地址</td><td><span class="tag tag-required">必填</span></td></tr>
+      <tr><td><code>team_name</code></td><td>团队名称</td><td><span class="tag tag-optional">可选</span></td></tr>
+      <tr><td><code>description</code></td><td>项目描述，建议 100–300 字</td><td><span class="tag tag-optional">可选</span></td></tr>
+      <tr><td><code>demo_url</code></td><td>Demo 演示地址</td><td><span class="tag tag-optional">可选</span></td></tr>
+      <tr><td><code>pitch_video_url</code></td><td>Pitch 视频链接</td><td><span class="tag tag-optional">可选</span></td></tr>
+      <tr><td><code>tags</code></td><td>赛道标签，多个用英文逗号分隔，如 <code>DeFi,AI</code></td><td><span class="tag tag-optional">可选</span></td></tr>
+    </table>
+
+    <p>支持在字段映射配置中开启自定义额外字段。字段内容包含英文逗号时，请用英文双引号包裹整个字段值。</p>
+
+    <p><strong>示例：</strong></p>
+    <pre><code>name,github_url,team_name,description,demo_url,tags
+ChainVault,https://github.com/team/chainvault,Team Alpha,一个去中心化的多签资产管理协议,https://chainvault.xyz,"DeFi,Security"
+AIDrop,https://github.com/team/aidrop,Team Beta,基于 AI 的 Airdrop 资格预测工具,,"AI,Tooling"</code></pre>
+
+    <hr />
+
+    <!-- AI 预分析 -->
+    <h2 id="ai-analysis">AI 预分析</h2>
+    <p>导入项目后，系统可对每个项目进行 AI 预分析，包括代码质量、Web3 影响力等维度。</p>
+
+    <ol>
+      <li>在活动详情页的项目列表中，点击「批量预分析」按钮。</li>
+      <li>系统自动对每个项目进行分析：
+        <ul>
+          <li><strong>GitHub 代码质量</strong>：分析仓库活跃度、代码结构、README 完整性等</li>
+          <li><strong>Web3 影响力</strong>：链上相关性、Token 经济模型、去中心化程度（如适用）</li>
+          <li><strong>代码扫描</strong>：基于 SonarQube 规则的代码质量评估</li>
+        </ul>
+      </li>
+      <li>分析完成后，每个项目展示：代码评分、Web3 分、AI 综合评语。</li>
+      <li>进度实时更新，大批量项目约需 10–30 分钟。</li>
+    </ol>
+
+    <div class="alert">
+      <strong>提示：</strong>预分析结果将作为评委评审时的参考依据，评委可在评审页查看详细分析内容。
+    </div>
+
+    <hr />
+
+    <!-- 邀请评委 -->
+    <h2 id="invite-reviewers">邀请评委（多人评审模式）</h2>
+    <p>仅在「多人评审」模式下可用。</p>
+
+    <ol>
+      <li>进入活动详情页，找到「管理评委」区域。</li>
+      <li>在邮箱输入框中填写评委邮箱地址。</li>
+      <li>点击「发送邀请」，系统发送邀请邮件给该评委。</li>
+      <li>评委收到邮件后，点击邀请链接进入注册/登录页面。</li>
+      <li>注册或登录后，评委账号自动与该活动关联，角色为 <strong>reviewer</strong>。</li>
+      <li>评委登录后可在「我的评审」中找到对应活动，进入评审页开始打分。</li>
+    </ol>
+
+    <div class="alert">
+      <strong>注意：</strong>评委只能看到被邀请的活动，无法创建新活动或访问其他活动数据。
+    </div>
+
+    <hr />
+
+    <!-- 公开投票配置 -->
+    <h2 id="vote-config">公开投票配置</h2>
+    <p>为活动开启公开投票，允许参与者为心仪项目投票。</p>
+
+    <ol>
+      <li>进入活动详情页，点击「投票配置」（Vote Settings）按钮。</li>
+      <li>开启「公开投票」开关。</li>
+      <li>填写配置项：
+        <ul>
+          <li><strong>标题</strong>：投票页展示的标题文字</li>
+          <li><strong>说明</strong>：投票页说明文字，支持 Markdown 格式</li>
+          <li><strong>每人票数</strong>：每位用户最多可投票数（范围 1–10）</li>
+          <li><strong>截止时间</strong>：投票截止的日期和时间</li>
+          <li><strong>实时显示票数</strong>：开启后投票者可看到当前各项目票数排名</li>
+        </ul>
+      </li>
+      <li>选择展示给投票者的项目字段：描述 / Demo / Pitch 视频 / GitHub 链接 / 标签。</li>
+      <li>点击「保存配置」，复制生成的公开投票链接，分享给参与者。</li>
+    </ol>
+
+    <div class="alert">
+      <strong>说明：</strong>参与者无需登录即可浏览项目；点击投票时，如未登录会提示注册/登录账号。
+    </div>
+
+    <hr />
+
+    <!-- ===== 评委操作 ===== -->
+
+    <!-- 接受邀请 -->
+    <h2 id="accept-invite">接受邀请</h2>
+    <ol>
+      <li>在收到的邀请邮件中，点击邀请链接。</li>
+      <li>若尚无账号，在注册页填写邮箱和密码完成注册；若已有账号，直接登录。</li>
+      <li>登录后账号自动加入对应活动，角色为 reviewer。</li>
+      <li>在顶部导航或「我的评审」中找到该活动，点击「进入评审」。</li>
+    </ol>
+
+    <hr />
+
+    <!-- 查看评分 -->
+    <h2 id="reviewer-scores">查看评分</h2>
+    <ol>
+      <li>进入评审页后，可看到该活动下所有需评审的项目列表。</li>
+      <li>每个项目行展示：项目名称、团队、AI 预分析结果（GitHub 分 / 代码分 / Web3 分）。</li>
+      <li>点击项目行可展开查看 AI 综合评语和各维度分数详情。</li>
+      <li>右上角「自定义权重」可调整各维度在综合分计算中的权重（仅影响本评委视图）。</li>
+    </ol>
+
+    <hr />
+
+    <!-- 调整分数 -->
+    <h2 id="adjust-scores">调整分数</h2>
+    <ol>
+      <li>在项目列表中，点击目标项目行尾的「调分」按钮。</li>
+      <li>在弹出的调分面板中：
+        <ul>
+          <li>选择参考的 AI 模型（如有多个模型分析结果可切换）</li>
+          <li>逐一调整各评审维度的分数（0–10 分）</li>
+          <li>可在备注框填写评语</li>
+        </ul>
+      </li>
+      <li>点击「保存」，分数临时保存，可继续修改。</li>
+    </ol>
+
+    <hr />
+
+    <!-- 提交最终分 -->
+    <h2 id="submit-scores">提交最终分</h2>
+    <ol>
+      <li>在评审页确认所有项目分数已填写完毕。</li>
+      <li>点击页面底部或右上角的「提交」按钮。</li>
+      <li>系统弹出确认对话框，再次确认后提交。</li>
+      <li><strong>提交后不可修改</strong>，请确认无误后再操作。</li>
+      <li>提交完成后，管理员可在汇总页看到你的评审进度已标记为「已完成」。</li>
+    </ol>
+
+    <div class="alert">
+      <strong>提示：</strong>未提交的分数不会纳入最终汇总排名，请务必完成提交。
+    </div>
+
+    <hr />
+
+    <!-- ===== 查看结果 ===== -->
+
+    <!-- 评审结果汇总 -->
+    <h2 id="result-summary">评审结果汇总</h2>
+    <p>管理员可在活动详情页点击「Review Results」查看多人评审的汇总结果。</p>
+
+    <ul>
+      <li><strong>评委完成情况</strong>：列出所有评委及其完成状态（已提交 / 未提交 / 进行中）</li>
+      <li><strong>项目综合排名</strong>：以所有评委最终分的均值为依据计算排名</li>
+      <li>支持按综合分或各维度排序</li>
+      <li>AI 自动模式下，管理员可直接在此页对各项目分数进行人工覆盖（Override）</li>
+    </ul>
+
+    <hr />
+
+    <!-- 评委详情 -->
+    <h2 id="reviewer-detail">评委详情</h2>
+    <ol>
+      <li>在评审结果汇总页，点击某位评委所在行。</li>
+      <li>展开该评委的详细评分视图，显示：
+        <ul>
+          <li>该评委对每个项目的各维度评分</li>
+          <li>各维度分数的进度条可视化</li>
+          <li>评委填写的评语备注</li>
+        </ul>
+      </li>
+    </ol>
+
+    <hr />
+
+    <!-- 公开投票结果 -->
+    <h2 id="vote-result">公开投票结果</h2>
+    <ul>
+      <li>管理员在活动详情页可实时查看各项目的投票数量和排名。</li>
+      <li>开启「实时显示票数」后，投票者也可在公开投票页看到当前票数排名。</li>
+      <li>投票截止后，排名自动锁定，公开页仍可访问历史结果。</li>
+    </ul>
+
+    <hr />
+
+    <!-- ===== 公开投票页 ===== -->
+
+    <h2 id="vote-page">公开投票页</h2>
+    <p>公开投票页允许任何人浏览参赛项目并参与投票，无需登录即可查看。</p>
+
+    <h3>访问方式</h3>
+    <p>投票页地址格式：</p>
+    <pre><code>https://hack2ai.vercel.app/vote/[活动ID]</code></pre>
+
+    <h3>操作说明</h3>
+    <ul>
+      <li><strong>浏览项目</strong>：无需登录，可查看管理员配置的项目字段（描述/Demo/Pitch/GitHub/标签）</li>
+      <li><strong>投票</strong>：点击项目的投票按钮，如未登录会跳转至注册/登录页</li>
+      <li><strong>票数限制</strong>：每位用户可投票数由管理员配置（1–10 票），票用尽前可分配给不同项目</li>
+      <li><strong>取消与重投</strong>：在截止时间前可取消对某项目的投票，并将票重新投给其他项目</li>
+      <li><strong>实时排名</strong>：若管理员开启「实时显示票数」，投票者可看到当前各项目票数排名</li>
+    </ul>
+
+    <hr />
+
+    <!-- ===== 用户账号 ===== -->
+
+    <!-- 注册与登录 -->
+    <h2 id="register-login">注册与登录</h2>
+
+    <h3>注册</h3>
+    <ol>
+      <li>访问平台注册页面。</li>
+      <li>填写邮箱地址和密码（密码至少 8 位）。</li>
+      <li>点击「注册」，账号创建成功。</li>
+      <li>新账号默认角色为 <strong>viewer</strong>，可参与公开投票。</li>
+    </ol>
+
+    <h3>登录</h3>
+    <ol>
+      <li>访问登录页面，输入邮箱和密码。</li>
+      <li>点击「登录」，成功后跳转至控制台首页。</li>
+    </ol>
+
+    <div class="alert">
+      <strong>提示：</strong>如忘记密码，请在登录页点击「忘记密码」，通过注册邮箱重置。
+    </div>
+
+    <hr />
+
+    <!-- 修改密码 -->
+    <h2 id="change-password">修改密码</h2>
+    <ol>
+      <li>登录后，点击右上角头像或用户名，进入「账号设置」。</li>
+      <li>在「安全」选项卡中，填写当前密码和新密码。</li>
+      <li>点击「保存修改」，密码更新成功。</li>
+      <li>下次登录时使用新密码。</li>
+    </ol>
+
+    <hr />
+
+    <!-- ===== 权限说明 ===== -->
+
+    <h2 id="permissions">权限说明</h2>
+
+    <table>
+      <tr><th>角色</th><th>权限</th></tr>
+      <tr><td><strong>admin</strong></td><td>创建活动、管理所有功能、查看所有活动数据、调整分数</td></tr>
+      <tr><td><strong>organizer</strong>（即将支持）</td><td>发布和管理自己创建的活动</td></tr>
+      <tr><td><strong>reviewer</strong></td><td>参与被邀请活动的评审，查看评审页，提交最终分</td></tr>
+      <tr><td><strong>viewer</strong></td><td>注册账号、参与公开投票</td></tr>
+    </table>
+
+    <div class="alert">
+      <strong>申请权限：</strong>新注册用户默认为 viewer。如需发布活动（organizer 权限），请联系 <a href="mailto:hackathon@openbuild.xyz">hackathon@openbuild.xyz</a>。
+    </div>
+
+    <hr />
+
+    <div style="margin: 40px 0; padding: 24px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface);">
+      <h3 style="margin: 0 0 16px; font-size: 16px; font-weight: 600;">接入你的 Agent</h3>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <button onclick="copyAgentConfig('cursor')" style="padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; color: var(--text);">
+          + 添加到 Cursor
+        </button>
+        <button onclick="copyAgentConfig('claude')" style="padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; color: var(--text);">
+          + 添加到 Claude Code
+        </button>
+        <button onclick="copyAgentConfig('windsurf')" style="padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; color: var(--text);">
+          + 添加到 Windsurf
+        </button>
+      </div>
+      <p style="margin: 12px 0 0; font-size: 12px; color: var(--muted);">点击按钮复制对应工具的配置 JSON，粘贴到你的 Agent 配置文件中。MCP server 即将上线。</p>
+    </div>
+
+    <p style="color: var(--muted); font-size: 13px; text-align: center; padding: 24px 0;">
+      HackAgent · AI-Powered Hackathon Judging · <a href="/">返回主页</a>
+    </p>
+
+  </main>
+</div>
+
+<script>
+  function copyAgentConfig(tool) {
+    var config = JSON.stringify({
+      mcpServers: {
+        hackagent: {
+          command: 'npx',
+          args: ['-y', '@hackagent/mcp-server'],
+          env: { HACKAGENT_API_KEY: 'your_key_here' }
+        }
+      }
+    }, null, 2);
+    var labels = { cursor: 'Cursor', claude: 'Claude Code', windsurf: 'Windsurf' };
+    var tip = '已复制 ' + (labels[tool] || tool) + ' 配置。MCP server 即将上线，敬请期待！';
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(config).then(function () {
+        alert(tip);
+      }).catch(function () {
+        prompt('复制以下配置：', config);
+      });
+    } else {
+      prompt('复制以下配置：', config);
+    }
+  }
+
+  // Active nav highlight
+  const links = document.querySelectorAll('.nav-link');
+  const sections = document.querySelectorAll('h2[id]');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`.nav-link[href="#${e.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

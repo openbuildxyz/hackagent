@@ -1,0 +1,14 @@
+-- OPE-99 / OPE-86: migrate event.status from 'open' (interim) to 'recruiting'.
+-- Run once, manually, during the deploy of the feat/OPE-99 PR. Safe to re-run
+-- (idempotent — becomes a no-op once no rows remain in 'open').
+--
+-- As of 2026-04-25 there is 1 row affected on production:
+--   e1420eaf-748e-40c4-925d-d84ecd9a7953  [TEST-OPEN] HackAgent QA 测试活动
+--
+-- Verify first:
+--   SELECT id, name, status FROM events WHERE status = 'open';
+-- Apply:
+UPDATE events SET status = 'recruiting' WHERE status = 'open';
+-- Verify after:
+--   SELECT COUNT(*) FROM events WHERE status = 'open';   -- expect 0
+--   SELECT COUNT(*) FROM events WHERE status = 'recruiting';
