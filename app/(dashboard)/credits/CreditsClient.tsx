@@ -38,6 +38,8 @@ const CONSUMPTION_ROWS: { op: TranslationKey; val: TranslationKey }[] = [
 
 export default function CreditsClient({ initialBalance }: { initialBalance: number }) {
   const t = useT()
+  const supportEmail = 'hackathon@openbuild.xyz'
+  const topUpDisabledDesc = t('credits.topUpDisabledDesc')
   const [balance, setBalance] = useState<number>(initialBalance)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -71,26 +73,27 @@ export default function CreditsClient({ initialBalance }: { initialBalance: numb
         <p className="text-muted-foreground text-sm mt-1">{t('credits.subtitle')}</p>
       </div>
 
-      <div
-        className="mb-6 flex items-start gap-3 rounded-lg p-4 border border-l-[3px]"
-        style={{
-          backgroundColor: 'var(--color-surface-2)',
-          borderColor: 'var(--color-border)',
-          borderLeftColor: 'var(--color-accent)',
-        }}
-      >
-        <Info size={18} className="mt-0.5 shrink-0" style={{ color: 'var(--color-accent)' }} />
+      <div className="mb-6 flex items-start gap-3 rounded-lg border border-l-4 border-[#BFDBFE] border-l-[#3B82F6] bg-[#EFF6FF] p-4 shadow-sm dark:border-blue-500/30 dark:border-l-[#3B82F6] dark:bg-blue-950/30">
+        <Info size={18} className="mt-0.5 shrink-0 text-[#2563EB] dark:text-blue-300" />
         <div className="flex-1 text-sm">
-          <p className="font-semibold" style={{ color: 'var(--color-fg)' }}>{t('credits.topUpDisabled')}</p>
-          <p className="mt-1" style={{ color: 'var(--color-fg-muted)' }}>{t('credits.topUpDisabledDesc')}</p>
+          <p className="font-semibold text-[#2563EB] dark:text-blue-200">{t('credits.topUpDisabled')}</p>
+          <p className="mt-1 text-slate-700 dark:text-blue-100/80">
+            {topUpDisabledDesc.includes(supportEmail) ? (
+              <>
+                {topUpDisabledDesc.split(supportEmail)[0]}
+                <a
+                  href={`mailto:${supportEmail}`}
+                  className="font-medium text-[#2563EB] underline underline-offset-2 hover:text-[#1D4ED8] dark:text-blue-300 dark:hover:text-blue-200"
+                >
+                  {supportEmail}
+                </a>
+                {topUpDisabledDesc.split(supportEmail).slice(1).join(supportEmail)}
+              </>
+            ) : (
+              topUpDisabledDesc
+            )}
+          </p>
         </div>
-        <a
-          href="mailto:hackathon@openbuild.xyz"
-          className="shrink-0 text-sm font-medium underline underline-offset-2 hover:opacity-80"
-          style={{ color: 'var(--color-accent)' }}
-        >
-          {t('credits.contactSupport')}
-        </a>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
