@@ -227,7 +227,8 @@ Publish a draft event, transitioning it to \`recruiting\` status. Automatically 
 
 \`\`\`bash
 curl -X POST ${BASE}/events/{eventId}/publish \\
-  -H "Authorization: Bearer $HACKAGENT_API_KEY"
+  -H "Authorization: Bearer $HACKAGENT_API_KEY" \\
+  -H "Content-Type: application/json"
 \`\`\`
 
 Prerequisites (all must pass or the call returns 400):
