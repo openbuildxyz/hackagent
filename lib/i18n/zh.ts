@@ -1001,7 +1001,7 @@ const zh = {
   'upload.tooLarge10': '图片不能超过 10MB',
   'upload.success': '上传成功',
   'upload.failed': '上传失败：{msg}',
-  'upload.formatHint': '支持 JPG / PNG / WebP，最大 10MB（自动压缩）',
+  'upload.formatHint': '建议上传 16:9 活动封面图，推荐尺寸 1600 × 900；最低建议 1200 × 675。请避免将重要文字或 Logo 放在图片边缘。支持 JPG / PNG / WebP，最大 10MB（自动压缩）',
   'upload.remove': '移除图片',
 
   // Public events index

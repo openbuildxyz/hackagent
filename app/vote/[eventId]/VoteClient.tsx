@@ -10,6 +10,7 @@ import { Sun, Moon } from 'lucide-react'
 import { useT, useLocale } from '@/lib/i18n'
 import { formatDateLong } from '@/lib/format-date'
 import PublicNavbar from '@/components/PublicNavbar'
+import EventCover from '@/components/EventCover'
 
 type Track = {
   id: string
@@ -353,10 +354,7 @@ export default function VoteClient({
             </div>
           )}
           {initialEvent.banner_url && (
-            <div className="w-full overflow-hidden rounded-xl mb-4 max-h-48">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={initialEvent.banner_url} alt="" className="w-full object-cover max-h-48" />
-            </div>
+            <EventCover src={initialEvent.banner_url} className="rounded-xl mb-4" />
           )}
           <h1 className="text-3xl font-bold text-fg">{initialEvent.title}</h1>
           {initialEvent.vote_config_description && (

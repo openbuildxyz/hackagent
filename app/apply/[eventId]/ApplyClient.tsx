@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { Loader2, CheckCircle2, XCircle, Clock, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { useT, type TranslationKey } from '@/lib/i18n'
+import EventCover from '@/components/EventCover'
 
 // Strip HTML tags with a simple regex — no jsdom (isomorphic-dompurify pulls jsdom
 // into the server chunk and crashes SSR with ERR_REQUIRE_ESM).
@@ -329,10 +330,7 @@ export default function ApplyClient({ eventConfig }: { eventConfig: EventConfig 
     <div className="min-h-screen bg-surface py-12 px-4">
       <div className="max-w-lg mx-auto space-y-6">
         {eventConfig.banner_url && (
-          <div className="rounded-xl overflow-hidden aspect-[3/1]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={eventConfig.banner_url} alt="" className="w-full h-full object-cover" />
-          </div>
+          <EventCover src={eventConfig.banner_url} className="rounded-xl" />
         )}
         <div className="space-y-1">
           <h1 className="text-2xl font-bold">{eventConfig.name}</h1>

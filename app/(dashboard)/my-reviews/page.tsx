@@ -10,6 +10,7 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ArrowRight, ClipboardList } from 'lucide-react'
+import EventCover from '@/components/EventCover'
 
 export default async function MyReviewsPage() {
   const session = await getSessionUser()
@@ -82,12 +83,11 @@ export default async function MyReviewsPage() {
             const submitted = submittedEvents.has(event.id)
             return (
               <div key={event.id} className="rounded-xl border border-token overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-                {event.banner_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={event.banner_url} alt="" className="w-full aspect-video object-cover" />
-                ) : (
-                  <div className="w-full aspect-video bg-gradient-to-br from-[var(--color-surface-2)] to-[var(--color-border)]" />
-                )}
+                <EventCover
+                  src={event.banner_url}
+                  fallback={null}
+                  fallbackClassName="bg-gradient-to-br from-[var(--color-surface-2)] to-[var(--color-border)]"
+                />
                 <div className="p-5 flex flex-col flex-1">
                   <div className="flex items-start justify-between gap-2 mb-3">
                     <h3 className="font-semibold text-fg leading-tight line-clamp-2">{event.name}</h3>

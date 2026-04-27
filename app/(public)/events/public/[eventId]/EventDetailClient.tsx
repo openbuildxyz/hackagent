@@ -9,6 +9,7 @@ import { useT, useLocale } from '@/lib/i18n'
 import { formatDate as formatDeterministic } from '@/lib/format-date'
 import PublicNavbar from '@/components/PublicNavbar'
 import EventStatusStepper from '@/components/EventStatusStepper'
+import EventCover from '@/components/EventCover'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
@@ -191,18 +192,12 @@ export default function EventDetailClient({ event }: { event: EventDetail }) {
         </Link>
 
         {/* Hero */}
-        {event.banner_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={event.banner_url}
-            alt={event.name}
-            className="w-full h-56 md:h-72 object-cover rounded-2xl mb-8"
-          />
-        ) : (
-          <div className="w-full h-48 md:h-64 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 flex items-center justify-center mb-8">
-            <span className="text-6xl">🦞</span>
-          </div>
-        )}
+        <EventCover
+          src={event.banner_url}
+          alt={event.name}
+          className="rounded-2xl mb-8"
+          fallback={<span className="text-6xl">🦞</span>}
+        />
 
         <div className="flex flex-wrap items-start gap-3 mb-4">
           <h1 className="text-3xl font-bold text-fg leading-tight flex-1">{event.name}</h1>

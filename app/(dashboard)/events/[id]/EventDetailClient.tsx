@@ -57,6 +57,7 @@ import {
 import { MODEL_NAMES, MODEL_COLORS, MODEL_CREDITS } from '@/lib/models'
 import { useT, useLocale } from '@/lib/i18n'
 import EventStatusStepper from '@/components/EventStatusStepper'
+import EventCover from '@/components/EventCover'
 
 type Track = {
   id: string
@@ -896,16 +897,12 @@ export default function EventDetailClient() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {event.banner_url ? (
-            <div className="w-full aspect-[16/9] rounded-lg overflow-hidden bg-surface-2 border border-token">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={event.banner_url} alt="" className="w-full h-full object-cover" />
-            </div>
-          ) : (
-            <div className="w-full aspect-[16/9] rounded-lg bg-surface-2 border border-dashed border-token flex items-center justify-center">
-              <p className="text-sm text-muted-foreground">{t('event.banner.empty')}</p>
-            </div>
-          )}
+          <EventCover
+            src={event.banner_url}
+            className="rounded-lg bg-surface-2 border border-token"
+            fallback={<p className="text-sm text-muted-foreground">{t('event.banner.empty')}</p>}
+            fallbackClassName="border border-dashed border-token"
+          />
 
           <div className="space-y-2">
             <Label htmlFor="banner-prompt" className="text-xs text-muted-foreground">

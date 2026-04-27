@@ -6,6 +6,7 @@ import { Calendar, Trophy, Tag, Zap, Search, Vote } from 'lucide-react'
 import { useT, useLocale, type TranslationKey } from '@/lib/i18n'
 import { formatMonthDay } from '@/lib/format-date'
 import PublicNavbar from '@/components/PublicNavbar'
+import EventCover from '@/components/EventCover'
 
 function descriptionSnippet(html: string | undefined): string {
   if (!html) return ''
@@ -198,24 +199,13 @@ function EventCard({ event, t, locale, now }: { event: PublicEvent; t: (k: Trans
         }}
       >
       {/* Banner */}
-      <div className="relative w-full h-44 overflow-hidden shrink-0">
-        {event.banner_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={event.banner_url}
-            alt={event.name}
-            className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${isDone ? 'grayscale-[40%] opacity-90' : ''}`}
-          />
-        ) : (
-          <div
-            className="w-full h-full flex items-center justify-center"
-            style={{
-              background: 'linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(168,85,247,0.1) 100%)',
-            }}
-          >
-            <span className="text-5xl opacity-60">🏆</span>
-          </div>
-        )}
+      <EventCover
+        src={event.banner_url}
+        alt={event.name}
+        imageClassName={`transition-transform duration-300 group-hover:scale-105 ${isDone ? 'grayscale-[40%] opacity-90' : ''}`}
+        fallback={<span className="text-5xl opacity-60">🏆</span>}
+        fallbackClassName="bg-[linear-gradient(135deg,rgba(99,102,241,0.15)_0%,rgba(168,85,247,0.1)_100%)]"
+      >
         {/* Status badge overlay — single primary indicator */}
         <div className="absolute top-3 left-3 flex items-center gap-1.5">
           <span
@@ -271,9 +261,7 @@ function EventCard({ event, t, locale, now }: { event: PublicEvent; t: (k: Trans
             </span>
           </div>
         )}
-      </div>
-
-      {/* Content */}
+      </EventCover>
       <div className="flex flex-col flex-1 p-5 gap-2.5">
         {/* Title */}
         <div className="flex items-start gap-2 flex-wrap">

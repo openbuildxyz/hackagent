@@ -99,7 +99,7 @@ export default function ImageUpload({ value, onChange, bucket, path, label, aspe
   }
 
   const isSquare = aspectRatio === 'square'
-  const containerClass = isSquare ? 'w-24 h-24' : 'w-full aspect-video max-h-40'
+  const containerClass = isSquare ? 'w-24 h-24' : 'w-full aspect-video'
 
   return (
     <div className="space-y-1.5">

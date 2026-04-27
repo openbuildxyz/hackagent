@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, Folder, ArrowRight, ExternalLink } from 'lucide-react'
 import DeleteEventButton from '../DeleteEventButton'
 import { useT, type TranslationKey } from '@/lib/i18n'
+import EventCover from '@/components/EventCover'
 
 export type EventSummary = {
   id: string
@@ -104,14 +105,11 @@ export default function EventsPageClient({ events, canManage }: { events: EventS
 
             return (
               <Card key={event.id} className="hover:shadow-md transition-shadow overflow-hidden">
-                {event.banner_url ? (
-                  <div className="w-full aspect-video overflow-hidden">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={event.banner_url} alt="" className="w-full h-full object-cover" />
-                  </div>
-                ) : (
-                  <div className="w-full aspect-video bg-gradient-to-br from-[var(--color-surface-2)] to-[var(--color-border)]" />
-                )}
+                <EventCover
+                  src={event.banner_url}
+                  fallback={null}
+                  fallbackClassName="bg-gradient-to-br from-[var(--color-surface-2)] to-[var(--color-border)]"
+                />
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0 flex-wrap">

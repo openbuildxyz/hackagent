@@ -1001,7 +1001,7 @@ const en = {
   'upload.tooLarge10': 'Image must be under 10MB',
   'upload.success': 'Uploaded',
   'upload.failed': 'Upload failed: {msg}',
-  'upload.formatHint': 'JPG / PNG / WebP, up to 10MB (auto-compressed)',
+  'upload.formatHint': 'Recommended: upload a 16:9 event cover image, ideally 1600 × 900; minimum suggested 1200 × 675. Avoid placing important text or logos near image edges. JPG / PNG / WebP, up to 10MB (auto-compressed)',
   'upload.remove': 'Remove image',
 
   // Public events index
