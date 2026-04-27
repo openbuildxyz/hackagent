@@ -10,7 +10,7 @@ This repository is prepared for open source distribution when all items below ar
 ## Secrets
 
 - [x] `.env*` files are ignored by git.
-- [x] `.env.local.example` contains placeholders only.
+- [x] `.env.example` contains placeholders only and is committed.
 - [x] Worker scripts require secrets from environment variables.
 - [x] No service-role key or production worker secret fallback is committed.
 
@@ -22,5 +22,5 @@ This repository is prepared for open source distribution when all items below ar
 
 ## CI
 
-- [x] GitHub Actions workflow template exists at `docs/ci/github-actions.yml`.
-- [ ] Enable it by copying to `.github/workflows/ci.yml` after a GitHub token with `workflow` scope is available for `jueduizone/hackagent`.
+- [x] GitHub Actions workflow exists at `.github/workflows/ci.yml`.
+- [x] `npm run validate:open-source` validates that `.env.example` exists and that Quick Start points at `openbuildxyz/hackagent`.

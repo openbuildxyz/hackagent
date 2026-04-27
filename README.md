@@ -32,7 +32,7 @@ Production demo: https://hackathon.xyz
 ## Quick start
 
 ```bash
-git clone https://github.com/jueduizone/hackagent.git
+git clone https://github.com/openbuildxyz/hackagent.git
 cd hackagent
 npm install
 cp .env.example .env.local

@@ -6,9 +6,17 @@ Thanks for contributing to HackAgent.
 
 ```bash
 npm install
-cp .env.local.example .env.local
+cp .env.example .env.local
 npm run dev
 ```
+
+Before relying on the public setup docs, run:
+
+```bash
+npm run validate:open-source
+```
+
+This checks that the canonical `.env.example` template exists and that Quick Start points to the public OpenBuild repository.
 
 Before opening a pull request:
 
