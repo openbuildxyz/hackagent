@@ -196,23 +196,22 @@ Final rankings. Public after the event ends.
 
 ### PATCH /events/:id *(Auth — Organizer)*
 
-Update a draft event. Only the event owner (admin/organizer) can call this, and only while \`status = "draft"\`.
+Update draft event fields. Only the event owner (admin/organizer) can call this, and only while \`status = "draft"\`.
 
 \`\`\`bash
 curl -X PATCH ${BASE}/events/{eventId} \\
-  -H "Authorization: Bearer $HACKA...KEY" \\
+  -H "Authorization: Bearer $HACKAGENT_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "name": "Updated Event Name",
-    "description": "Updated description...",
+    "description": "Updated description for the hackathon",
     "tracks": [{ "name": "DeFi", "prize": "$1,000" }],
     "registration_deadline": "2026-06-01T00:00:00Z",
-    "submission_deadline": "2026-06-15T00:00:00Z",
-    "registration_config": { "open": false, "auto_approve": true, "fields": [] }
+    "submission_deadline": "2026-06-15T00:00:00Z"
   }'
 \`\`\`
 
-Allowed fields: \`name\`, \`description\`, \`tracks\`, \`registration_deadline\`, \`submission_deadline\`, \`registration_config\`. Any other field returns 400.
+Allowed fields: \`name\`, \`description\`, \`tracks\`, \`registration_deadline\`, \`submission_deadline\`. Any other field returns 400.
 
 Validation:
 - \`registration_deadline\` must be in the future and cannot move earlier
@@ -228,14 +227,14 @@ Publish a draft event, transitioning it to \`recruiting\` status. Automatically 
 
 \`\`\`bash
 curl -X POST ${BASE}/events/{eventId}/publish \\
-  -H "Authorization: Bearer $HACKA...KEY"
+  -H "Authorization: Bearer $HACKAGENT_API_KEY"
 \`\`\`
 
 Prerequisites (all must pass or the call returns 400):
 - \`description\` ≥ 10 characters
 - At least 1 track defined
 - \`registration_deadline\` set and in the future
-- \`submission_deadline\` (if set) must be after \`registration_deadline\`
+- \`submission_deadline\` set and after \`registration_deadline\`
 
 Error codes: \`EVENT_PUBLISH_NOT_DRAFT\` (409), \`EVENT_PUBLISH_MISSING_DESCRIPTION\` (400), \`EVENT_PUBLISH_MISSING_TRACKS\` (400), \`EVENT_PUBLISH_MISSING_DEADLINE\` (400), \`EVENT_PUBLISH_DEADLINE_PASSED\` (400), \`EVENT_PUBLISH_DEADLINE_INVALID_ORDER\` (400).
 

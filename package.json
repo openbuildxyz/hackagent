@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test:banner-feedback": "node scripts/test-banner-feedback.mjs",
+    "test:skill-md": "node scripts/test-skill-md.mjs",
     "validate:open-source": "node scripts/validate-open-source.mjs"
   },
   "dependencies": {
