@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test:banner-feedback": "node scripts/test-banner-feedback.mjs",
     "validate:open-source": "node scripts/validate-open-source.mjs"
   },
   "dependencies": {

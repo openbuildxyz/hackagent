@@ -1147,6 +1147,8 @@ const zh = {
   'event.banner.generating': '生成中…(约 15s)',
   'event.banner.generated': 'Banner 已生成，预览后点「使用此 Banner」应用到活动',
   'event.banner.generateFailed': '生成失败',
+  'event.banner.generateFailedRetry': '生成失败，请稍后重试',
+  'event.banner.generateTimeout': '生成失败，请稍后重试：请求超时，可重试',
   'event.banner.updated': 'Banner 已更新',
   'event.banner.preview': '预览',
   'event.banner.previewHint': '尚未应用 —— 点「使用此 Banner」保存。',

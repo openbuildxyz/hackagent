@@ -405,16 +405,26 @@ export default function EventDetailClient() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: bannerPrompt.trim() || undefined }),
+        signal: AbortSignal.timeout(45_000),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        throw new Error(data?.message || data?.error || `${t('event.banner.generateFailed')} (${res.status})`)
+        const detail = data?.message || data?.error || `${res.status}`
+        throw new Error(`${t('event.banner.generateFailedRetry')}：${detail}`)
+      }
+      if (!data?.url) {
+        throw new Error(t('event.banner.generateFailedRetry'))
       }
       setGeneratedBannerUrl(data.url)
       if (typeof data.used === 'number') setBannerUsed(data.used)
       toast.success(t('event.banner.generated'))
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('event.banner.generateFailed'))
+      const message = err instanceof DOMException && err.name === 'TimeoutError'
+        ? t('event.banner.generateTimeout')
+        : err instanceof Error
+          ? err.message
+          : t('event.banner.generateFailedRetry')
+      toast.error(message.includes(t('event.banner.generateFailedRetry')) ? message : `${t('event.banner.generateFailedRetry')}：${message}`)
     } finally {
       setGeneratingBanner(false)
     }
@@ -915,6 +925,7 @@ export default function EventDetailClient() {
               <Button
                 size="sm"
                 className="gap-1.5"
+                type="button"
                 disabled={generatingBanner || applyingBanner || bannerUsed >= BANNER_QUOTA}
                 onClick={handleGenerateBanner}
               >

@@ -1147,6 +1147,8 @@ const en = {
   'event.banner.generating': 'Generating… (~15s)',
   'event.banner.generated': 'Banner generated. Review the preview and click "Use this banner" to apply.',
   'event.banner.generateFailed': 'Generation failed',
+  'event.banner.generateFailedRetry': 'Generation failed, please try again later',
+  'event.banner.generateTimeout': 'Generation failed, please try again later: request timed out; you can retry',
   'event.banner.updated': 'Banner updated',
   'event.banner.preview': 'Preview',
   'event.banner.previewHint': 'Not applied yet — click "Use this banner" to save.',
