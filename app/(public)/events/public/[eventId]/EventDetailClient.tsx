@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Calendar, ExternalLink, Trophy, Vote } from 'lucide-react'
 import { useT, useLocale } from '@/lib/i18n'
-import { formatDate as formatDeterministic, formatDateLong } from '@/lib/format-date'
+import { formatDate as formatDeterministic } from '@/lib/format-date'
 import PublicNavbar from '@/components/PublicNavbar'
 import EventStatusStepper from '@/components/EventStatusStepper'
 import ReactMarkdown from 'react-markdown'
@@ -101,7 +101,7 @@ export default function EventDetailClient({ event }: { event: EventDetail }) {
   }
 
   function formatDate(dateStr: string) {
-    return formatDateLong(dateStr, locale)
+    return formatDeterministic(dateStr, locale)
   }
 
   function formatDateTime(dateStr: string) {
