@@ -7,17 +7,19 @@ export default async function PublicEventsPage() {
   const db = createServiceClient()
   const { data: events } = await db
     .from('events')
-    .select('id, name, description, banner_url, status, created_at, tracks, registration_config, registration_deadline, public_vote')
+    .select('id, name, description, banner_url, status, created_at, tracks, registration_config, registration_deadline, public_vote, is_hidden')
     .is('deleted_at', null)
+    .or('is_hidden.is.null,is_hidden.eq.false')
     .neq('status', 'draft')
     .neq('status', 'cancelled')
+    .not('name', 'ilike', '%test%')
+    .not('name', 'ilike', '%qa%')
+    .not('name', 'ilike', '%e2e%')
+    .not('name', 'ilike', '%ope-%')
+    .not('name', 'ilike', '%测试%')
     .order('created_at', { ascending: false })
 
-  // Only hide finished events whose names look like test/QA fixtures; live events
-  // with "test" in the name (e.g. "TestNet Hackathon") remain visible.
-  const filtered = (events ?? []).filter(
-    e => !(e.status === 'done' && /test|测试|E2E/i.test(e.name))
-  )
+  const filtered = events ?? []
 
   return <PublicEventsClient initialEvents={filtered} />
 }

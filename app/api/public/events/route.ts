@@ -23,12 +23,14 @@ export async function GET(request: NextRequest) {
     .from('events')
     .select('id, name, description, banner_url, status, created_at, tracks, registration_config, registration_deadline')
     .is('deleted_at', null)
-    .eq('is_hidden', false)
+    .or('is_hidden.is.null,is_hidden.eq.false')
     .neq('status', 'draft')
     .neq('status', 'cancelled')
     .not('name', 'ilike', '%test%')
+    .not('name', 'ilike', '%qa%')
+    .not('name', 'ilike', '%e2e%')
+    .not('name', 'ilike', '%ope-%')
     .not('name', 'ilike', '%测试%')
-    .not('name', 'ilike', '%E2E%')
     .order('created_at', { ascending: false })
 
   if (error) {
