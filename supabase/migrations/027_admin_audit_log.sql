@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS public.admin_audit_log (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  admin_user_id   uuid NOT NULL REFERENCES public.users(id) ON DELETE SET NULL,
+  admin_user_id   uuid REFERENCES public.users(id) ON DELETE SET NULL,
   action          text NOT NULL,
   target_type     text NOT NULL,
   target_id       text,

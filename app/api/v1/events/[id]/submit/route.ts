@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getAgentUser } from '@/lib/agentAuth'
-import { validateProjectInput, type ValidationResult } from '@/lib/validate-project'
+import { validateProjectInput } from '@/lib/validate-project'
 import { submissionAllowedStatus } from '@/lib/event-status'
+import { recordSubmissionVersion } from '@/lib/submissions'
 
 export async function POST(
   request: NextRequest,
@@ -72,12 +73,24 @@ export async function POST(
   const v = validateProjectInput({ name: project_name, github_url, description, demo_url })
   if (!v.ok) return NextResponse.json({ error: 'Validation failed', details: v.errors }, { status: 400 })
 
-  const { data: existingProject } = await db
-    .from('projects')
-    .select('id, name, github_url, status, team_id')
-    .eq('event_id', eventId)
-    .eq('registration_id', reg.id)
-    .maybeSingle()
+  let existingProject: { id: string; name: string; github_url: string; status: string; team_id: string | null } | null = null
+  if (teamId) {
+    const { data } = await db
+      .from('projects')
+      .select('id, name, github_url, status, team_id')
+      .eq('event_id', eventId)
+      .eq('team_id', teamId)
+      .maybeSingle()
+    existingProject = data
+  } else {
+    const { data } = await db
+      .from('projects')
+      .select('id, name, github_url, status, team_id')
+      .eq('event_id', eventId)
+      .eq('registration_id', reg.id)
+      .maybeSingle()
+    existingProject = data
+  }
 
   if (existingProject) {
     const updatePayload: Record<string, unknown> = {
@@ -100,7 +113,7 @@ export async function POST(
       eventId,
       projectId: updated.id,
       registrationId: reg.id,
-      teamId: existingProject.team_id ?? teamId,
+      teamId: teamId ?? existingProject.team_id ?? null,
       userId: user.userId,
       body,
       sanitized: v.sanitized,
@@ -154,43 +167,4 @@ export async function POST(
     updated: false,
     version,
   }, { status: 200 })
-}
-
-async function recordSubmissionVersion(
-  db: ReturnType<typeof createServiceClient>,
-  input: {
-    eventId: string
-    projectId: string
-    registrationId: string
-    teamId: string | null
-    userId: string
-    body: Record<string, unknown>
-    sanitized: ValidationResult['sanitized']
-  }
-): Promise<number> {
-  const { data: latest } = await db
-    .from('submissions')
-    .select('version')
-    .eq('project_id', input.projectId)
-    .order('version', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  const version = ((latest?.version as number | undefined) ?? 0) + 1
-  const { error } = await db.from('submissions').insert({
-    event_id: input.eventId,
-    project_id: input.projectId,
-    registration_id: input.registrationId,
-    team_id: input.teamId,
-    user_id: input.userId,
-    version,
-    name: input.sanitized.name,
-    github_url: input.sanitized.github_url,
-    demo_url: input.sanitized.demo_url,
-    description: input.sanitized.description,
-    payload: input.body,
-  })
-
-  if (error) throw new Error(error.message)
-  return version
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUser } from '@/lib/session'
-import { initReviewerScores } from '@/app/api/events/[eventId]/reviewers/route'
+import { initReviewerScores } from '@/lib/reviewer-scores'
 
 // POST /api/reviewer-invite/confirm — finalize invite for an already-registered
 // user. Requires the caller to be logged in AND their session email to match

@@ -21,7 +21,7 @@ export async function POST(
 
   const { data: event, error: fetchError } = await db
     .from('events')
-    .select('id, user_id, status, description, tracks, registration_deadline, submission_deadline')
+    .select('id, user_id, status, description, tracks, start_time, registration_deadline, submission_deadline, judging_end')
     .eq('id', id)
     .is('deleted_at', null)
     .single()
@@ -71,9 +71,9 @@ export async function POST(
 
   if (event.submission_deadline) {
     const subDeadline = new Date(event.submission_deadline).getTime()
-    if (!(subDeadline > regDeadline)) {
+    if (!(subDeadline >= regDeadline)) {
       return NextResponse.json(
-        { error: 'EVENT_PUBLISH_DEADLINE_INVALID_ORDER', message: 'submission_deadline must be after registration_deadline' },
+        { error: 'EVENT_PUBLISH_DEADLINE_INVALID_ORDER', message: 'submission_deadline must be at or after registration_deadline' },
         { status: 400 }
       )
     }
@@ -86,12 +86,13 @@ export async function POST(
     .eq('id', id)
     .single()
 
+  const targetStatus = event.start_time && new Date(event.start_time) > new Date() ? 'upcoming' : 'recruiting'
   const prevConfig = (fullEvent?.registration_config ?? {}) as Record<string, unknown>
-  const mergedConfig = { ...prevConfig, open: true }
+  const mergedConfig = { ...prevConfig, open: targetStatus === 'recruiting' }
 
   const { error: updateError } = await db
     .from('events')
-    .update({ status: 'recruiting', registration_config: mergedConfig })
+    .update({ status: targetStatus, registration_config: mergedConfig })
     .eq('id', id)
     .eq('status', 'draft')
 
@@ -99,5 +100,5 @@ export async function POST(
     return NextResponse.json({ error: updateError.message }, { status: 500 })
   }
 
-  return NextResponse.json({ id: event.id, status: 'recruiting' })
+  return NextResponse.json({ id: event.id, status: targetStatus })
 }

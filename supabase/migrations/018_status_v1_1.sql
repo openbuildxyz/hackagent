@@ -45,4 +45,4 @@ COMMENT ON COLUMN public.events.start_time IS 'Registration start; future start_
 COMMENT ON COLUMN public.events.judging_end IS 'When judging phase ends; used by cron to auto-transition judging→done';
 COMMENT ON COLUMN public.events.cancelled_at IS 'Timestamp when the event was cancelled';
 COMMENT ON COLUMN public.events.cancelled_reason IS 'Optional reason provided by the organizer for cancellation';
-COMMENT ON TABLE public.submissions IS 'Versioned project submissions; reviewers should use the highest version per project';
+COMMENT ON TABLE public.submissions IS 'Versioned project submissions; team submissions use the highest version per team, solo submissions use the highest version per project';

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { hashPassword, createToken } from '@/lib/auth'
 import { cookies } from 'next/headers'
-import { initReviewerScores } from '@/app/api/events/[eventId]/reviewers/route'
+import { initReviewerScores } from '@/lib/reviewer-scores'
 
 // POST /api/reviewer-invite/accept — register via invite token
 //
