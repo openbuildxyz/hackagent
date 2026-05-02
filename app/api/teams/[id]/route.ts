@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/session'
 import { createServiceClient } from '@/lib/supabase'
+import { teamMutableStatus } from '@/lib/event-status'
 
 // GET /api/teams/[id] — team detail with members and pending requests
 //
@@ -89,13 +90,17 @@ export async function PUT(
   // Verify ownership
   const { data: team, error: fetchError } = await supabase
     .from('teams')
-    .select('leader_id, status')
+    .select('leader_id, status, events!inner(status)')
     .eq('id', id)
     .single()
 
   if (fetchError || !team) return NextResponse.json({ error: 'Team not found' }, { status: 404 })
   if (team.leader_id !== user.userId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  const eventRow = Array.isArray(team.events) ? team.events[0] : team.events
+  if (!teamMutableStatus(eventRow?.status)) {
+    return NextResponse.json({ error: 'Team membership is locked for this event stage' }, { status: 409 })
   }
   if (team.status === 'disbanded') {
     return NextResponse.json({ error: 'Team has been disbanded' }, { status: 400 })
@@ -145,13 +150,17 @@ export async function DELETE(
 
   const { data: team, error: fetchError } = await supabase
     .from('teams')
-    .select('leader_id, status')
+    .select('leader_id, status, events!inner(status)')
     .eq('id', id)
     .single()
 
   if (fetchError || !team) return NextResponse.json({ error: 'Team not found' }, { status: 404 })
   if (team.leader_id !== user.userId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  const eventRow = Array.isArray(team.events) ? team.events[0] : team.events
+  if (!teamMutableStatus(eventRow?.status)) {
+    return NextResponse.json({ error: 'Team membership is locked for this event stage' }, { status: 409 })
   }
   if (team.status === 'disbanded') {
     return NextResponse.json({ error: 'Team already disbanded' }, { status: 400 })

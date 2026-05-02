@@ -75,10 +75,9 @@ export async function POST(
     return NextResponse.json({ error: 'Event not found' }, { status: 404 })
   }
 
-  // Only 'recruiting' or 'hacking' events accept registrations. draft/judging/done/cancelled all
-  // refuse, regardless of registration_config.open — a draft event must not leak via public POST
-  // even if the organizer flipped open=true.
-  if (event.status !== 'recruiting' && event.status !== 'hacking') {
+  // Only recruiting events accept registrations. draft/upcoming/hacking/open/judging/done/cancelled all
+  // refuse, regardless of registration_config.open.
+  if (event.status !== 'recruiting') {
     return NextResponse.json(
       { error: 'Event is not accepting registrations', status: event.status },
       { status: 400 }

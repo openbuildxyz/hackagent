@@ -109,7 +109,7 @@ export default function EventDetailClient({ event }: { event: EventDetail }) {
     return formatDeterministic(dateStr, locale)
   }
 
-  const isRegPhase = event.status === 'recruiting' || event.status === 'hacking'
+  const isRegPhase = event.status === 'recruiting'
   const regDeadlinePassed = !!event.registration_deadline && new Date(event.registration_deadline) < new Date()
   const isRegOpen = !!event.registration_config?.open && isRegPhase && !regDeadlinePassed
   const isDone = event.status === 'done'

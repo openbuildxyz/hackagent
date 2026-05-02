@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/session'
 import { createServiceClient } from '@/lib/supabase'
+import { teamMutableStatus } from '@/lib/event-status'
 
-// POST /api/teams/[id]/join — apply to join a team
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -13,40 +13,34 @@ export async function POST(
   const { id: teamId } = await params
   const supabase = createServiceClient()
 
-  // Verify team exists and is open
   const { data: team, error: teamError } = await supabase
     .from('teams')
-    .select('id, leader_id, max_members, status')
+    .select('id, event_id, leader_id, max_members, status, events!inner(status)')
     .eq('id', teamId)
     .single()
 
   if (teamError || !team) return NextResponse.json({ error: 'Team not found' }, { status: 404 })
-  if (team.status === 'disbanded') {
-    return NextResponse.json({ error: 'Team has been disbanded' }, { status: 400 })
+  const eventRow = Array.isArray(team.events) ? team.events[0] : team.events
+  if (!teamMutableStatus(eventRow?.status)) {
+    return NextResponse.json({ error: 'Team membership is locked for this event stage' }, { status: 409 })
   }
-  if (team.status === 'locked') {
-    return NextResponse.json({ error: 'Team is locked' }, { status: 400 })
-  }
-  if (team.status !== 'open') {
-    return NextResponse.json({ error: 'Team is not accepting new members' }, { status: 400 })
-  }
-  if (team.leader_id === user.userId) {
-    return NextResponse.json({ error: 'You are the leader of this team' }, { status: 400 })
-  }
+  if (team.status === 'disbanded') return NextResponse.json({ error: 'Team has been disbanded' }, { status: 400 })
+  if (team.status === 'locked') return NextResponse.json({ error: 'Team is locked' }, { status: 409 })
+  if (team.status !== 'open') return NextResponse.json({ error: 'Team is not accepting new members' }, { status: 400 })
+  if (team.leader_id === user.userId) return NextResponse.json({ error: 'You are the leader of this team' }, { status: 400 })
 
-  // Check if already a member
-  const { data: existingMember } = await supabase
+  const { data: existingInEvent } = await supabase
     .from('team_members')
-    .select('id')
-    .eq('team_id', teamId)
+    .select('team_id, teams!inner(event_id, status)')
     .eq('user_id', user.userId)
+    .eq('teams.event_id', team.event_id)
+    .neq('teams.status', 'disbanded')
     .maybeSingle()
 
-  if (existingMember) {
-    return NextResponse.json({ error: 'Already a member of this team' }, { status: 400 })
+  if (existingInEvent) {
+    return NextResponse.json({ error: 'User already belongs to a team in this event' }, { status: 409 })
   }
 
-  // Check existing pending request
   const { data: existingRequest } = await supabase
     .from('team_join_requests')
     .select('id, status')
@@ -55,10 +49,7 @@ export async function POST(
     .maybeSingle()
 
   if (existingRequest) {
-    return NextResponse.json(
-      { error: `Already have a ${existingRequest.status} request for this team` },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: `Already have a ${existingRequest.status} request for this team` }, { status: 400 })
   }
 
   const body = await req.json().catch(() => ({}))
@@ -66,16 +57,10 @@ export async function POST(
 
   const { data: request, error } = await supabase
     .from('team_join_requests')
-    .insert({
-      team_id: teamId,
-      user_id: user.userId,
-      message: message || null,
-      status: 'pending',
-    })
+    .insert({ team_id: teamId, user_id: user.userId, message: message || null, status: 'pending' })
     .select()
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
   return NextResponse.json({ request }, { status: 201 })
 }

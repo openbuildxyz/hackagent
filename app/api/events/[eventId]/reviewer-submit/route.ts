@@ -18,6 +18,15 @@ export async function POST(
   const { eventId } = await params
   const db = createServiceClient()
 
+  const { data: event } = await db
+    .from('events')
+    .select('status')
+    .eq('id', eventId)
+    .single()
+
+  if (!event) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+  if (event.status === 'done') return NextResponse.json({ error: 'Event is done; reviewers are read-only' }, { status: 403 })
+
   const { data: reviewer } = await db
     .from('event_reviewers')
     .select('id')

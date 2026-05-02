@@ -111,6 +111,21 @@ export async function sendReviewerNotifyEmail(
   )
 }
 
+export async function sendEventCancelledEmail(email: string, eventName: string, reason?: string | null) {
+  await sendMail(
+    email,
+    `HackAgent 活动已取消：${eventName}`,
+    `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2 style="color: #111;">活动已取消</h2>
+      <p>您报名的活动 <strong>${eventName}</strong> 已被主办方取消。</p>
+      ${reason ? `<p>取消原因：${reason}</p>` : ''}
+      <p style="color: #666; font-size: 13px;">如有疑问，请联系活动主办方。</p>
+    </div>
+    `
+  )
+}
+
 export async function sendWelcomeEmail(email: string) {
   await sendMail(
     email,

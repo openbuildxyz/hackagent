@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/session'
 import { createServiceClient } from '@/lib/supabase'
+import { teamMutableStatus } from '@/lib/event-status'
 
-// PUT /api/teams/[id]/requests/[reqId] — approve or reject a join request (leader only)
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; reqId: string }> }
@@ -13,19 +13,19 @@ export async function PUT(
   const { id: teamId, reqId } = await params
   const supabase = createServiceClient()
 
-  // Verify leader
   const { data: team, error: teamError } = await supabase
     .from('teams')
-    .select('id, leader_id, max_members')
+    .select('id, event_id, leader_id, max_members, events!inner(status)')
     .eq('id', teamId)
     .single()
 
   if (teamError || !team) return NextResponse.json({ error: 'Team not found' }, { status: 404 })
-  if (team.leader_id !== user.userId) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (team.leader_id !== user.userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const eventRow = Array.isArray(team.events) ? team.events[0] : team.events
+  if (!teamMutableStatus(eventRow?.status)) {
+    return NextResponse.json({ error: 'Team membership is locked for this event stage' }, { status: 409 })
   }
 
-  // Get the request
   const { data: joinReq, error: reqError } = await supabase
     .from('team_join_requests')
     .select('id, user_id, status')
@@ -33,32 +33,35 @@ export async function PUT(
     .eq('team_id', teamId)
     .single()
 
-  if (reqError || !joinReq) {
-    return NextResponse.json({ error: 'Request not found' }, { status: 404 })
-  }
-  if (joinReq.status !== 'pending') {
-    return NextResponse.json({ error: 'Request already processed' }, { status: 400 })
-  }
+  if (reqError || !joinReq) return NextResponse.json({ error: 'Request not found' }, { status: 404 })
+  if (joinReq.status !== 'pending') return NextResponse.json({ error: 'Request already processed' }, { status: 400 })
 
   const body = await req.json()
-  const { action } = body // 'approve' | 'reject'
-
+  const { action } = body
   if (action !== 'approve' && action !== 'reject') {
     return NextResponse.json({ error: 'action must be approve or reject' }, { status: 400 })
   }
 
   if (action === 'approve') {
-    // Check member count
+    const { data: existingInEvent } = await supabase
+      .from('team_members')
+      .select('team_id, teams!inner(event_id, status)')
+      .eq('user_id', joinReq.user_id)
+      .eq('teams.event_id', team.event_id)
+      .neq('teams.status', 'disbanded')
+      .maybeSingle()
+
+    if (existingInEvent) {
+      return NextResponse.json({ error: 'User already belongs to a team in this event' }, { status: 409 })
+    }
+
     const { count } = await supabase
       .from('team_members')
       .select('id', { count: 'exact', head: true })
       .eq('team_id', teamId)
 
-    if ((count ?? 0) >= team.max_members) {
-      return NextResponse.json({ error: 'Team is full' }, { status: 400 })
-    }
+    if ((count ?? 0) >= team.max_members) return NextResponse.json({ error: 'Team is full' }, { status: 400 })
 
-    // Add as member
     const { error: memberError } = await supabase
       .from('team_members')
       .insert({ team_id: teamId, user_id: joinReq.user_id, role: 'member' })
@@ -66,7 +69,6 @@ export async function PUT(
     if (memberError) return NextResponse.json({ error: memberError.message }, { status: 500 })
   }
 
-  // Update request status
   const { data: updated, error: updateError } = await supabase
     .from('team_join_requests')
     .update({ status: action === 'approve' ? 'approved' : 'rejected' })
@@ -75,6 +77,5 @@ export async function PUT(
     .single()
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
-
   return NextResponse.json({ request: updated })
 }

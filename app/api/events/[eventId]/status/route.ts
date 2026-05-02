@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUserWithRole } from '@/lib/session'
+import { canTransitionEventStatus, deriveEventStatus, type EventStatus } from '@/lib/event-status'
+import { sendEventCancelledEmail } from '@/lib/mail'
 
-// POST /api/events/[eventId]/status
-// Body: { action: "publish" | "close_registration" | "start_review" | "publish_result" | "cancel", reason?: string }
-// Transitions: draft → recruiting → hacking → judging → done
-//                                                       ↘ cancelled (from any non-terminal state)
+const ACTION_TARGET: Record<string, EventStatus> = {
+  publish: 'recruiting',
+  schedule: 'upcoming',
+  close_registration: 'hacking',
+  merge_open: 'open',
+  start_review: 'judging',
+  publish_result: 'done',
+  cancel: 'cancelled',
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
@@ -18,100 +26,84 @@ export async function POST(
 
   const { data: event } = await db
     .from('events')
-    .select('id, user_id, status, models, mode, registration_config')
+    .select('id, user_id, name, status, models, mode, start_time, registration_deadline, submission_deadline, judging_end, result_announced_at, registration_config')
     .eq('id', eventId)
     .single()
 
   if (!event) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
   if (event.user_id !== session.userId && !session.isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const body = await req.json().catch(() => ({})) as { action?: string; reason?: string }
-  const { action } = body
+  const body = await req.json().catch(() => ({})) as { action?: string; status?: EventStatus; reason?: string }
+  const target = body.status ?? (body.action ? ACTION_TARGET[body.action] : undefined)
+  if (!target) return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
 
-  if (action === 'publish') {
-    if (event.status !== 'draft') {
-      return NextResponse.json({ error: 'Event must be in draft status to publish' }, { status: 400 })
-    }
-    const { error } = await db.from('events').update({ status: 'recruiting' }).eq('id', eventId)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ status: 'recruiting' })
+  if (!canTransitionEventStatus(event.status, target)) {
+    return NextResponse.json({ error: `Illegal status transition: ${event.status} -> ${target}` }, { status: 409 })
   }
 
-  if (action === 'close_registration') {
-    if (event.status !== 'recruiting') {
-      return NextResponse.json({ error: 'Event must be in recruiting status to close registration' }, { status: 400 })
-    }
-    const { error } = await db.from('events').update({ status: 'hacking' }).eq('id', eventId)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ status: 'hacking' })
+  const derived = deriveEventStatus(event)
+  if (target === 'open' && derived !== 'open') {
+    return NextResponse.json({ error: 'open requires registration_deadline == submission_deadline' }, { status: 409 })
   }
 
-  if (action === 'start_review') {
-    if (event.status !== 'recruiting' && event.status !== 'hacking') {
-      return NextResponse.json({ error: 'Event must be in recruiting or hacking status to start review' }, { status: 400 })
-    }
+  const prevConfig = (event.registration_config ?? {}) as Record<string, unknown>
+  const update: Record<string, unknown> = { status: target }
+  if (target === 'cancelled') {
+    update.cancelled_at = new Date().toISOString()
+    update.cancelled_reason = body.reason?.trim() || null
+    update.registration_config = { ...prevConfig, open: false }
+  } else if (target === 'recruiting') {
+    update.registration_config = { ...prevConfig, open: true }
+  } else {
+    update.registration_config = { ...prevConfig, open: false }
+  }
 
-    // Update event status to judging
-    const { error: updateError } = await db.from('events').update({ status: 'judging' }).eq('id', eventId)
-    if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+  const { error: updateError } = await db.from('events').update(update).eq('id', eventId).eq('status', event.status)
+  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
 
-    // Enqueue all unanalyzed projects for background analysis
+  let enqueued = 0
+  let cancelledNotified = 0
+
+  if (target === 'cancelled') {
+    const { data: registrations } = await db
+      .from('registrations')
+      .select('users!inner(email)')
+      .eq('event_id', eventId)
+      .neq('status', 'rejected')
+
+    const results = await Promise.allSettled((registrations ?? []).map(async row => {
+      const userRow = Array.isArray(row.users) ? row.users[0] : row.users
+      const email = userRow?.email
+      if (!email) return false
+      await sendEventCancelledEmail(email, event.name, body.reason?.trim() || null)
+      return true
+    }))
+    cancelledNotified = results.filter(r => r.status === 'fulfilled' && r.value).length
+  }
+
+  if (target === 'judging') {
+    await db.from('teams').update({ status: 'locked' }).eq('event_id', eventId).eq('status', 'open')
+
     const { data: projects } = await db
       .from('projects')
       .select('id')
       .eq('event_id', eventId)
       .or('analysis_status.is.null,analysis_status.eq.error,analysis_status.eq.pending')
 
-    let enqueued = 0
     if (projects && projects.length > 0) {
       const projectIds = projects.map(p => p.id)
-      // Remove existing pending jobs for these projects
       await db.from('analysis_queue').delete().in('project_id', projectIds).eq('status', 'pending')
-      // Insert new queue entries
-      const entries = projectIds.map(pid => ({
+      await db.from('analysis_queue').insert(projectIds.map(pid => ({
         project_id: pid,
         event_id: eventId,
         status: 'pending',
         models: (event.models as string[]) ?? [],
         sonar_enabled: false,
-      }))
-      await db.from('analysis_queue').insert(entries)
+      })))
       await db.from('projects').update({ analysis_status: 'pending' }).in('id', projectIds)
       enqueued = projectIds.length
     }
-
-    return NextResponse.json({ status: 'judging', enqueued })
   }
 
-  if (action === 'publish_result') {
-    if (event.status !== 'judging') {
-      return NextResponse.json({ error: 'Event must be in judging status to publish results' }, { status: 400 })
-    }
-    const { error } = await db.from('events').update({ status: 'done' }).eq('id', eventId)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ status: 'done' })
-  }
-
-  if (action === 'cancel') {
-    if (event.status === 'done') {
-      return NextResponse.json({ error: 'Cannot cancel a completed event' }, { status: 400 })
-    }
-    if (event.status === 'cancelled') {
-      return NextResponse.json({ error: 'Event is already cancelled' }, { status: 400 })
-    }
-    const prevConfig = (event.registration_config ?? {}) as Record<string, unknown>
-    const update: Record<string, unknown> = {
-      status: 'cancelled',
-      cancelled_at: new Date().toISOString(),
-      cancelled_reason: body.reason?.trim() || null,
-    }
-    if (event.registration_config !== null && event.registration_config !== undefined) {
-      update.registration_config = { ...prevConfig, open: false }
-    }
-    const { error } = await db.from('events').update(update).eq('id', eventId)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ status: 'cancelled' })
-  }
-
-  return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+  return NextResponse.json({ status: target, enqueued, cancelledNotified })
 }
