@@ -41,7 +41,10 @@ export async function POST(request: NextRequest) {
     name: string
     description?: string
     tracks?: Array<{ name: string; description?: string; prize?: string }>
+    registration_open_at?: string | null
+    start_time?: string | null
     registration_deadline?: string
+    submission_deadline?: string | null
   }
 
   if (!body.name?.trim()) {
@@ -61,7 +64,10 @@ export async function POST(request: NextRequest) {
       name: body.name.trim(),
       description: body.description?.trim() ?? null,
       tracks,
+      registration_open_at: body.registration_open_at ?? null,
+      start_time: body.start_time ?? null,
       registration_deadline: body.registration_deadline ?? null,
+      submission_deadline: body.submission_deadline ?? null,
       status: 'draft',
       mode: 'ai_only',
       web3_enabled: false,

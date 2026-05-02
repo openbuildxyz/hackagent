@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getAgentUser } from '@/lib/agentAuth'
+import { derivePublishStatus } from '@/lib/event-status'
 
 // POST /api/v1/events/[id]/publish — organizer/admin agent 把 draft 活动发布为 recruiting（见 OPE-86 状态机）
 export async function POST(
@@ -21,7 +22,7 @@ export async function POST(
 
   const { data: event, error: fetchError } = await db
     .from('events')
-    .select('id, user_id, status, description, tracks, start_time, registration_deadline, submission_deadline, judging_end')
+    .select('id, user_id, status, description, tracks, registration_open_at, start_time, registration_deadline, submission_deadline, judging_end')
     .eq('id', id)
     .is('deleted_at', null)
     .single()
@@ -86,7 +87,7 @@ export async function POST(
     .eq('id', id)
     .single()
 
-  const targetStatus = event.start_time && new Date(event.start_time) > new Date() ? 'upcoming' : 'recruiting'
+  const targetStatus = derivePublishStatus(event)
   const prevConfig = (fullEvent?.registration_config ?? {}) as Record<string, unknown>
   const mergedConfig = { ...prevConfig, open: targetStatus === 'recruiting' }
 

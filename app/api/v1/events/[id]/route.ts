@@ -12,7 +12,7 @@ export async function GET(
 
   const { data: event, error } = await db
     .from('events')
-    .select('id, name, description, status, registration_config, tracks, registration_deadline, submission_deadline, result_announced_at, banner_url, public_vote')
+    .select('id, name, description, status, registration_config, tracks, registration_open_at, start_time, registration_deadline, submission_deadline, result_announced_at, banner_url, public_vote')
     .eq('id', id)
     .neq('status', 'draft')
     .is('deleted_at', null)
@@ -29,6 +29,8 @@ const PATCH_ALLOWED_FIELDS = [
   'name',
   'description',
   'tracks',
+  'registration_open_at',
+  'start_time',
   'registration_deadline',
   'submission_deadline',
   'registration_config',
@@ -40,6 +42,8 @@ type PatchBody = Partial<{
   name: string
   description: string | null
   tracks: Array<{ id?: string; name: string; description?: string; prize?: string }>
+  registration_open_at: string | null
+  start_time: string | null
   registration_deadline: string | null
   submission_deadline: string | null
   registration_config: { open?: boolean; auto_approve?: boolean; fields?: unknown[] }

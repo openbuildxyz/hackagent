@@ -23,6 +23,7 @@ export const STATUS_TRANSITIONS: Record<EventStatus, EventStatus[]> = {
 }
 
 export type EventTiming = {
+  registration_open_at?: string | null
   start_time?: string | null
   registration_deadline?: string | null
   submission_deadline?: string | null
@@ -47,7 +48,9 @@ export function isMergedOpenWindow(input: EventTiming): boolean {
 export function deriveEventStatus(input: EventTiming & { status?: string | null }, now = new Date()): EventStatus | null {
   if (input.status === 'cancelled' || input.status === 'done') return input.status
 
+  const registrationOpen = input.registration_open_at ? new Date(input.registration_open_at) : null
   const start = input.start_time ? new Date(input.start_time) : null
+  const openAt = registrationOpen ?? start
   const regDeadline = input.registration_deadline ? new Date(input.registration_deadline) : null
   const submitDeadline = input.submission_deadline ? new Date(input.submission_deadline) : null
   const judgingEnd = input.judging_end ? new Date(input.judging_end) : null
@@ -60,9 +63,17 @@ export function deriveEventStatus(input: EventTiming & { status?: string | null 
     if (!start || now >= start) return 'open'
   }
   if (regDeadline && now >= regDeadline) return 'hacking'
-  if (start && now < start) return 'upcoming'
-  if (start && now >= start) return 'recruiting'
+  if (openAt && now < openAt) return 'upcoming'
+  if (openAt && now >= openAt) return 'recruiting'
   return null
+}
+
+export function derivePublishStatus(input: Pick<EventTiming, 'registration_open_at' | 'start_time'>, now = new Date()): Extract<EventStatus, 'upcoming' | 'recruiting'> {
+  const registrationOpen = input.registration_open_at ? new Date(input.registration_open_at) : null
+  const start = input.start_time ? new Date(input.start_time) : null
+  const openAt = registrationOpen ?? start
+
+  return openAt && openAt > now ? 'upcoming' : 'recruiting'
 }
 
 export function teamMutableStatus(status: string | null | undefined): boolean {

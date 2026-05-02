@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { name, track, description, dimensions, models, web3_enabled, mode, tracks, banner_url, registration_deadline, submission_deadline, registration_config } = body
+  const { name, track, description, dimensions, models, web3_enabled, mode, tracks, banner_url, registration_open_at, start_time, registration_deadline, submission_deadline, registration_config } = body
 
   if (!name?.trim()) {
     return NextResponse.json({ error: '活动名称不能为空' }, { status: 400 })
@@ -86,6 +86,8 @@ export async function POST(request: NextRequest) {
       tracks: Array.isArray(tracks) ? tracks : [],
       status: 'draft',
       banner_url: banner_url || null,
+      registration_open_at: registration_open_at ?? null,
+      start_time: start_time ?? null,
       registration_deadline: registration_deadline ?? null,
       submission_deadline: submission_deadline ?? null,
       registration_config: registration_config ?? { open: false, auto_approve: false, fields: [] },

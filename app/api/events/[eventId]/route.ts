@@ -99,7 +99,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
   }
-  const { name, track, description, dimensions, models, web3_enabled, sonar_enabled, mode, column_mapping, tracks, banner_url, registration_deadline, submission_deadline, registration_config, status, current_reviewing, is_hidden } = body as {
+  const { name, track, description, dimensions, models, web3_enabled, sonar_enabled, mode, column_mapping, tracks, banner_url, registration_open_at, start_time, registration_deadline, submission_deadline, registration_config, status, current_reviewing, is_hidden } = body as {
     name?: string
     track?: string | null
     description?: string | null
@@ -113,6 +113,8 @@ export async function PATCH(
     column_mapping?: Record<string, string | null>
     tracks?: Array<{ id: string; name: string; description?: string; prize?: string }> | null
     banner_url?: string | null
+    registration_open_at?: string | null
+    start_time?: string | null
     registration_deadline?: string | null
     submission_deadline?: string | null
     registration_config?: { open: boolean; auto_approve: boolean; fields: unknown[] } | null
@@ -135,6 +137,8 @@ export async function PATCH(
   if (column_mapping !== undefined) updateData.column_mapping = column_mapping
   if (tracks !== undefined) updateData.tracks = tracks
   if (banner_url !== undefined) updateData.banner_url = banner_url
+  if (registration_open_at !== undefined) updateData.registration_open_at = registration_open_at
+  if (start_time !== undefined) updateData.start_time = start_time
   if (registration_deadline !== undefined) updateData.registration_deadline = registration_deadline
   if (submission_deadline !== undefined) updateData.submission_deadline = submission_deadline
   if (registration_config !== undefined) updateData.registration_config = registration_config

@@ -5,6 +5,7 @@ import { canTransitionEventStatus, deriveEventStatus, type EventStatus } from '@
 type EventRow = {
   id: string
   status: string
+  registration_open_at: string | null
   start_time: string | null
   registration_deadline: string | null
   submission_deadline: string | null
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
 
   const { data: events, error } = await db
     .from('events')
-    .select('id, status, start_time, registration_deadline, submission_deadline, judging_end, result_announced_at, registration_config')
+    .select('id, status, registration_open_at, start_time, registration_deadline, submission_deadline, judging_end, result_announced_at, registration_config')
     .is('deleted_at', null)
     .not('status', 'in', '(done,cancelled)')
 

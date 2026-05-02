@@ -26,7 +26,7 @@ export async function POST(
 
   const { data: event } = await db
     .from('events')
-    .select('id, user_id, name, status, models, mode, start_time, registration_deadline, submission_deadline, judging_end, result_announced_at, registration_config')
+    .select('id, user_id, name, status, models, mode, registration_open_at, start_time, registration_deadline, submission_deadline, judging_end, result_announced_at, registration_config')
     .eq('id', eventId)
     .single()
 
