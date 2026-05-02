@@ -31,7 +31,7 @@ npx vercel --prod
 
 Depending on enabled features, also configure:
 
-- `COMMONSTACK_API_KEY`, `OPENROUTER_API_KEY`, or `ZENMUX_API_KEY`
+- `ZENMUX_PAY2GO_API_KEY` (preferred for production), or legacy fallback `ZENMUX_API_KEY` / `COMMONSTACK_API_KEY`
 - `MAILGUN_DOMAIN`, `MAILGUN_API_KEY`, `MAIL_FROM`
 - `CRON_SECRET`
 - `INTERNAL_API_URL`, `INTERNAL_API_SECRET`

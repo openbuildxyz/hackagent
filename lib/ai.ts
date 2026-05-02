@@ -1,3 +1,5 @@
+import { getTemperatureForModel, getZenmuxApiKey, getZenmuxChatApiBase } from './zenmux'
+
 console.log('[ai.ts] module loaded OK')
 
 const MODEL_MAP: Record<string, string> = {
@@ -102,10 +104,10 @@ export async function scoreProject(
   codeAnalysis?: { is_real_code?: boolean; business_match_score?: number; code_quality_summary?: string } | null
 ): Promise<ScoreResult> {
   console.log('[scoreProject] start', modelKey, project.name)
-  const apiUrl = process.env.ZENMUX_API_URL || process.env.COMMONSTACK_API_URL || 'https://zenmux.ai/api/v1'
-  const apiKey = process.env.ZENMUX_API_KEY || process.env.COMMONSTACK_API_KEY
+  const apiUrl = getZenmuxChatApiBase()
+  const apiKey = getZenmuxApiKey()
 
-  if (!apiKey) throw new Error('ZENMUX_API_KEY not set')
+  if (!apiKey) throw new Error('ZENMUX_PAY2GO_API_KEY not set')
 
   const modelId = MODEL_MAP[modelKey]
   if (!modelId) throw new Error(`Unknown model: ${modelKey}`)
@@ -192,7 +194,7 @@ ${sonarPrompt}${web3Prompt}
         body: JSON.stringify({
           model: modelId,
           messages: [{ role: 'user', content: prompt }],
-          temperature: 0.3,
+          temperature: getTemperatureForModel(modelId, 0.3),
           max_tokens: 8000,
         }),
       })

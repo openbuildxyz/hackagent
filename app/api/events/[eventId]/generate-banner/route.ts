@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUserWithRole } from '@/lib/session'
+import { getZenmuxApiKey, getZenmuxVertexApiBase } from '@/lib/zenmux'
 
 const MAX_GENERATIONS_PER_EVENT = 3
-const MODEL = process.env.ZENMUX_IMAGE_MODEL || 'google/gemini-3-pro-image-preview'
+const MODEL = process.env.ZENMUX_IMAGE_MODEL || 'openai/gpt-image-2'
+const IMAGE_SIZE = process.env.ZENMUX_IMAGE_SIZE || '1536x864'
+const IMAGE_QUALITY = process.env.ZENMUX_IMAGE_QUALITY || 'high'
 
 export async function POST(
   req: NextRequest,
@@ -48,24 +51,24 @@ export async function POST(
     eventDesc ? `Event context: ${eventDesc}` : '',
     userPrompt ? `Creative direction from organizer: ${userPrompt}` : '',
     'Style: modern tech aesthetic, vibrant gradients, abstract geometric shapes, clean typography space on the left, no text rendered in the image.',
-    'High quality, professional, 1792x1024 pixels.',
+    `High quality, professional, ${IMAGE_SIZE} pixels.`,
   ]
     .filter(Boolean)
     .join('\n')
 
-  const rawApiUrl = process.env.ZENMUX_API_URL || process.env.COMMONSTACK_API_URL || 'https://zenmux.ai/api'
-  const apiKey = process.env.ZENMUX_API_KEY || process.env.COMMONSTACK_API_KEY
+  const apiKey = getZenmuxApiKey()
   if (!apiKey) {
     return NextResponse.json({ error: 'AI not configured' }, { status: 500 })
   }
 
-  // Zenmux Vertex AI proxy: generateContent with IMAGE response modality.
-  // NOTE: Zenmux's OpenAI-compatible /chat/completions endpoint does NOT
-  // support image output for any listed model (verified via /v1/models —
-  // zero entries have output_modalities:['image']). The Vertex proxy is the
-  // only working path for gemini-3-pro-image-preview.
-  const vertexBase = rawApiUrl.replace(/\/v1\/?$/, '').replace(/\/+$/, '')
-  const url = `${vertexBase}/vertex-ai/v1/models/${MODEL}:generateContent`
+  // GPT Image 2 is exposed by ZenMux through the Vertex-compatible predict API.
+  // Direct handle verified before implementation: openai/gpt-image-2.
+  const vertexBase = getZenmuxVertexApiBase()
+  const [publisher, modelName] = MODEL.split('/')
+  if (!publisher || !modelName) {
+    return NextResponse.json({ error: 'invalid_image_model', message: `Invalid image model: ${MODEL}` }, { status: 500 })
+  }
+  const url = `${vertexBase}/v1/publishers/${publisher}/models/${modelName}:predict`
 
   const res = await fetch(url, {
     method: 'POST',
@@ -74,14 +77,19 @@ export async function POST(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: promptText }] }],
-      generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+      instances: [{ prompt: promptText }],
+      parameters: {
+        sampleCount: 1,
+        outputOptions: { mimeType: 'image/png' },
+      },
+      imageSize: IMAGE_SIZE,
+      quality: IMAGE_QUALITY,
     }),
   })
 
   if (!res.ok) {
     const errText = await res.text()
-    console.error('[generate-banner] zenmux error', res.status, errText.slice(0, 500))
+    console.error('[generate-banner] zenmux image error', res.status, errText.slice(0, 500))
     return NextResponse.json(
       { error: 'image_generation_failed', message: `AI 生成失败 (${res.status})`, detail: errText.slice(0, 200) },
       { status: 502 }
@@ -89,26 +97,15 @@ export async function POST(
   }
 
   const json = await res.json()
-  // Extract first inline image from Vertex candidates[0].content.parts[].inlineData
-  type Part = {
-    text?: string
-    thought?: boolean
-    inlineData?: { mimeType?: string; data?: string }
-    inline_data?: { mime_type?: string; data?: string }
+  type Prediction = {
+    bytesBase64Encoded?: string
+    mimeType?: string
+    image?: { imageBytes?: string; mimeType?: string }
   }
-  const parts: Part[] = json?.candidates?.[0]?.content?.parts ?? []
-  let b64: string | undefined
-  let mime = 'image/png'
-  for (const p of parts) {
-    const inline = (p.inlineData || p.inline_data) as
-      | { mimeType?: string; mime_type?: string; data?: string }
-      | undefined
-    if (inline?.data) {
-      b64 = inline.data
-      mime = inline.mimeType || inline.mime_type || mime
-      break
-    }
-  }
+  const predictions: Prediction[] = json?.predictions ?? json?.generatedImages ?? []
+  const first = predictions[0]
+  const b64 = first?.bytesBase64Encoded || first?.image?.imageBytes
+  const mime = first?.mimeType || first?.image?.mimeType || 'image/png'
 
   if (!b64) {
     console.error('[generate-banner] no image in response', JSON.stringify(json).slice(0, 500))

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/session'
+import { getZenmuxApiKey, getZenmuxChatApiBase } from '@/lib/zenmux'
 
 interface GeneratedEvent {
   name: string
@@ -19,8 +20,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'prompt is required' }, { status: 400 })
   }
 
-  const apiUrl = process.env.ZENMUX_API_URL || process.env.COMMONSTACK_API_URL || 'https://zenmux.ai/api/v1'
-  const apiKey = process.env.ZENMUX_API_KEY || process.env.COMMONSTACK_API_KEY
+  const apiUrl = getZenmuxChatApiBase()
+  const apiKey = getZenmuxApiKey()
   if (!apiKey) return NextResponse.json({ error: 'AI service not configured' }, { status: 500 })
 
   const systemPrompt = `你是一个 Hackathon 组织顾问。根据用户的描述，生成一份结构化的活动方案。

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/session'
 import { createServiceClient } from '@/lib/supabase'
+import { getZenmuxApiKey, getZenmuxChatApiBase } from '@/lib/zenmux'
 
-const AI_API_BASE = process.env.ZENMUX_API_URL || 'https://zenmux.ai/api/v1'
+const AI_API_BASE = getZenmuxChatApiBase()
 const AI_API_URL = `${AI_API_BASE}/chat/completions`
-const AI_API_KEY = process.env.ZENMUX_API_KEY || process.env.COMMONSTACK_API_KEY
+const AI_API_KEY = getZenmuxApiKey()
 const AI_MODEL = 'z-ai/glm-4.5-air'
 
 type Participant = {
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient()
 
   if (!AI_API_KEY) {
-    return NextResponse.json({ error: 'AI service not configured (ZENMUX_API_KEY missing)' }, { status: 503 })
+    return NextResponse.json({ error: 'AI service not configured (ZENMUX_PAY2GO_API_KEY missing)' }, { status: 503 })
   }
 
   // Verify event exists and user is owner
