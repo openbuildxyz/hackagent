@@ -234,12 +234,27 @@ export default function LandingClient({ initialProjectsReviewed }: { initialProj
   const [locale, setLocale] = useLocale()
   const t = useT()
   const [loggedIn, setLoggedIn] = useState(false)
+  const [dashboardHref, setDashboardHref] = useState('/events/public')
+  const [dashboardLabel, setDashboardLabel] = useState<'dashboard' | 'reviews' | 'events'>('events')
   const [projectsReviewed, setProjectsReviewed] = useState<number | null>(initialProjectsReviewed)
 
   useEffect(() => {
     fetch('/api/auth/me')
       .then(r => r.ok ? r.json() : null)
-      .then(data => setLoggedIn(!!data?.loggedIn))
+      .then(data => {
+        setLoggedIn(!!data?.loggedIn)
+        const role: string[] = Array.isArray(data?.role) ? data.role : []
+        if (role.includes('admin') || role.includes('organizer')) {
+          setDashboardHref('/dashboard')
+          setDashboardLabel('dashboard')
+        } else if (role.includes('reviewer')) {
+          setDashboardHref('/my-reviews')
+          setDashboardLabel('reviews')
+        } else {
+          setDashboardHref('/events/public')
+          setDashboardLabel('events')
+        }
+      })
       .catch(() => {})
     fetch('/api/public-stats')
       .then(r => r.ok ? r.json() : null)
@@ -289,9 +304,14 @@ export default function LandingClient({ initialProjectsReviewed }: { initialProj
             </button>
             <ThemeToggle />
             {loggedIn ? (
-              <Link href="/events">
+              <Link href={dashboardHref}>
                 <Button size="sm" className="rounded-md gap-1 px-3 sm:px-4 h-8">
-                  {locale === 'zh' ? '后台' : 'Dashboard'} <ArrowUpRight size={12} />
+                  {dashboardLabel === 'dashboard'
+                    ? (locale === 'zh' ? '后台' : 'Dashboard')
+                    : dashboardLabel === 'reviews'
+                      ? (locale === 'zh' ? '评审' : 'Reviews')
+                      : (locale === 'zh' ? '活动' : 'Events')}
+                  <ArrowUpRight size={12} />
                 </Button>
               </Link>
             ) : (
