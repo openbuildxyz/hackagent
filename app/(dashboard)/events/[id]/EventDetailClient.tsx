@@ -88,6 +88,7 @@ type Event = {
 }
 
 const BANNER_QUOTA = 3
+const BANNER_GENERATION_TIMEOUT_MS = 120_000
 
 // OPE-98: deterministic deadline formatter — `toLocaleString('zh-CN')` diverges
 // between Node ICU and V8, surfacing as React #418 on hydration.
@@ -406,7 +407,7 @@ export default function EventDetailClient() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: bannerPrompt.trim() || undefined }),
-        signal: AbortSignal.timeout(45_000),
+        signal: AbortSignal.timeout(BANNER_GENERATION_TIMEOUT_MS),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {

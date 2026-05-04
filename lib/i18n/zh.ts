@@ -1150,7 +1150,7 @@ const zh = {
   'event.banner.aiLabel': 'AI 生成 Banner',
   'event.banner.aiPlaceholder': '可选：描述风格 / 元素，如「赛博朋克风、紫色霓虹、AI 主题」。留空则用活动名 + 描述。',
   'event.banner.generate': '开始生成',
-  'event.banner.generating': '生成中…(约 15s)',
+  'event.banner.generating': '生成中…(约 60s)',
   'event.banner.generated': 'Banner 已生成，预览后点「使用此 Banner」应用到活动',
   'event.banner.generateFailed': '生成失败',
   'event.banner.generateFailedRetry': '生成失败，请稍后重试',

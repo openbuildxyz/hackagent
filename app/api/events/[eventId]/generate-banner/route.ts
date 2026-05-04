@@ -8,6 +8,8 @@ const MODEL = process.env.ZENMUX_IMAGE_MODEL || 'openai/gpt-image-2'
 const IMAGE_SIZE = process.env.ZENMUX_IMAGE_SIZE || '1536x864'
 const IMAGE_QUALITY = process.env.ZENMUX_IMAGE_QUALITY || 'high'
 
+export const maxDuration = 120
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
@@ -30,7 +32,15 @@ export async function POST(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // Quota check (column added by migration 031; if missing, treat as 0)
+  // Quota check (column added by migration 031). Do not silently treat a missing
+  // column as 0; that burns image credits and never persists quota usage.
+  if (!Object.prototype.hasOwnProperty.call(event, 'banner_gen_count')) {
+    console.error('[generate-banner] missing events.banner_gen_count column')
+    return NextResponse.json(
+      { error: 'schema_missing', message: 'events.banner_gen_count is missing; run migration 031_event_banner_gen_count.sql' },
+      { status: 500 }
+    )
+  }
   const used = (event as { banner_gen_count?: number | null }).banner_gen_count ?? 0
   if (used >= MAX_GENERATIONS_PER_EVENT) {
     return NextResponse.json(
@@ -126,8 +136,22 @@ export async function POST(
 
   const { data: { publicUrl } } = db.storage.from('event-banners').getPublicUrl(filename)
 
-  // Increment quota counter (best effort — column might not exist yet in older deployments)
-  await db.from('events').update({ banner_gen_count: used + 1 }).eq('id', eventId)
+  // Increment quota counter. This must be enforced, otherwise the UI can keep
+  // showing 3 remaining and the backend can generate unlimited images.
+  const { error: quotaErr } = await db
+    .from('events')
+    .update({ banner_gen_count: used + 1 })
+    .eq('id', eventId)
+  if (quotaErr) {
+    console.error('[generate-banner] quota update failed', quotaErr)
+    // Best-effort cleanup: avoid leaving an orphaned paid generation that the
+    // user cannot account for or quota-track.
+    await db.storage.from('event-banners').remove([filename]).catch(() => {})
+    return NextResponse.json(
+      { error: 'quota_update_failed', message: 'Banner generated but quota update failed; please retry after the database schema is fixed.' },
+      { status: 500 }
+    )
+  }
 
   return NextResponse.json({
     url: publicUrl,

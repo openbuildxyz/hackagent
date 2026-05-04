@@ -7,4 +7,4 @@ ALTER TABLE public.events
   ADD COLUMN IF NOT EXISTS banner_gen_count integer NOT NULL DEFAULT 0;
 
 COMMENT ON COLUMN public.events.banner_gen_count IS
-  'Number of AI banner generations consumed for this event (max 5, enforced in app).';
+  'Number of AI banner generations consumed for this event (max 3, enforced in app).';

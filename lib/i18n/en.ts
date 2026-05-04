@@ -1150,7 +1150,7 @@ const en = {
   'event.banner.aiLabel': 'AI Generate Banner',
   'event.banner.aiPlaceholder': 'Optional: describe style / elements. Leave blank to use event title + description.',
   'event.banner.generate': 'Generate',
-  'event.banner.generating': 'Generating… (~15s)',
+  'event.banner.generating': 'Generating… (~60s)',
   'event.banner.generated': 'Banner generated. Review the preview and click "Use this banner" to apply.',
   'event.banner.generateFailed': 'Generation failed',
   'event.banner.generateFailedRetry': 'Generation failed, please try again later',
