@@ -889,105 +889,107 @@ export default function EventDetailClient() {
       </div>
 
       {/* Banner management */}
-      <Card className="mb-6">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <ImageIcon size={14} className="text-fg-muted" />
-            {t('event.banner.title')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <EventCover
-            src={event.banner_url}
-            className="rounded-lg bg-surface-2 border border-token"
-            fallback={<p className="text-sm text-muted-foreground">{t('event.banner.empty')}</p>}
-            fallbackClassName="border border-dashed border-token"
-          />
-
+      <Card className="mb-4">
+        <CardContent className="grid gap-4 p-4 lg:grid-cols-[minmax(280px,420px)_1fr] lg:items-start">
           <div className="space-y-2">
-            <Label htmlFor="banner-prompt" className="text-xs text-muted-foreground">
-              {t('event.banner.aiLabel')}
-            </Label>
-            <Textarea
-              id="banner-prompt"
-              placeholder={t('event.banner.aiPlaceholder')}
-              value={bannerPrompt}
-              onChange={e => setBannerPrompt(e.target.value)}
-              rows={2}
-              maxLength={400}
-              disabled={generatingBanner || bannerUsed >= BANNER_QUOTA}
-              className="text-sm resize-none"
-            />
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <Button
-                size="sm"
-                className="gap-1.5"
-                type="button"
-                disabled={generatingBanner || applyingBanner || bannerUsed >= BANNER_QUOTA}
-                onClick={handleGenerateBanner}
-              >
-                {generatingBanner ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin" />
-                    {t('event.banner.generating')}
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={14} />
-                    {t('event.banner.generate')}
-                  </>
-                )}
-              </Button>
-              <span className="text-xs text-muted-foreground">
-                {bannerUsed >= BANNER_QUOTA
-                  ? `${t('event.banner.quotaReached')} (${bannerUsed}/${BANNER_QUOTA})`
-                  : `${t('event.banner.quotaRemaining')} ${BANNER_QUOTA - bannerUsed} · ${t('event.banner.quotaPerEvent')} ${BANNER_QUOTA}${t('event.banner.quotaPerEventSuffix')}`}
-              </span>
+            <div className="flex items-center gap-2 text-sm font-medium text-fg">
+              <ImageIcon size={14} className="text-fg-muted" />
+              {t('event.banner.title')}
             </div>
+            <EventCover
+              src={event.banner_url}
+              className="rounded-lg bg-surface-2 border border-token shadow-sm"
+              fallback={<p className="text-sm text-muted-foreground">{t('event.banner.empty')}</p>}
+              fallbackClassName="border border-dashed border-token"
+            />
           </div>
 
-          {generatedBannerUrl && generatedBannerUrl !== event.banner_url && (
-            <div className="rounded-lg border border-token p-3 space-y-3 bg-surface">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-fg-muted">{t('event.banner.preview')}</p>
-                <span className="text-[11px] text-muted-foreground">
-                  {t('event.banner.previewHint')}
-                </span>
-              </div>
-              <div className="w-full aspect-[16/9] rounded overflow-hidden bg-surface-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={generatedBannerUrl} alt={t('event.banner.preview')} className="w-full h-full object-cover" />
-              </div>
-              <div className="flex gap-2 flex-wrap">
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="banner-prompt" className="text-xs text-muted-foreground">
+                {t('event.banner.aiLabel')}
+              </Label>
+              <Textarea
+                id="banner-prompt"
+                placeholder={t('event.banner.aiPlaceholder')}
+                value={bannerPrompt}
+                onChange={e => setBannerPrompt(e.target.value)}
+                rows={2}
+                maxLength={400}
+                disabled={generatingBanner || bannerUsed >= BANNER_QUOTA}
+                className="text-sm resize-none"
+              />
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <Button
                   size="sm"
-                  onClick={handleApplyBanner}
-                  disabled={applyingBanner}
                   className="gap-1.5"
+                  type="button"
+                  disabled={generatingBanner || applyingBanner || bannerUsed >= BANNER_QUOTA}
+                  onClick={handleGenerateBanner}
                 >
-                  {applyingBanner ? (
+                  {generatingBanner ? (
                     <>
                       <Loader2 size={14} className="animate-spin" />
-                      {t('event.banner.applying')}
+                      {t('event.banner.generating')}
                     </>
                   ) : (
                     <>
-                      <CheckCircle2 size={14} />
-                      {t('event.banner.apply')}
+                      <Sparkles size={14} />
+                      {t('event.banner.generate')}
                     </>
                   )}
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setGeneratedBannerUrl(null)}
-                  disabled={applyingBanner}
-                >
-                  {t('event.banner.discard')}
-                </Button>
+                <span className="text-xs text-muted-foreground">
+                  {bannerUsed >= BANNER_QUOTA
+                    ? `${t('event.banner.quotaReached')} (${bannerUsed}/${BANNER_QUOTA})`
+                    : `${t('event.banner.quotaRemaining')} ${BANNER_QUOTA - bannerUsed} · ${t('event.banner.quotaPerEvent')} ${BANNER_QUOTA}${t('event.banner.quotaPerEventSuffix')}`}
+                </span>
               </div>
             </div>
-          )}
+
+            {generatedBannerUrl && generatedBannerUrl !== event.banner_url && (
+              <div className="rounded-lg border border-token p-3 space-y-3 bg-surface">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-fg-muted">{t('event.banner.preview')}</p>
+                  <span className="text-[11px] text-muted-foreground">
+                    {t('event.banner.previewHint')}
+                  </span>
+                </div>
+                <div className="w-full max-w-[360px] aspect-[16/9] rounded overflow-hidden bg-surface-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={generatedBannerUrl} alt={t('event.banner.preview')} className="w-full h-full object-cover" />
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    size="sm"
+                    onClick={handleApplyBanner}
+                    disabled={applyingBanner}
+                    className="gap-1.5"
+                  >
+                    {applyingBanner ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        {t('event.banner.applying')}
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 size={14} />
+                        {t('event.banner.apply')}
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setGeneratedBannerUrl(null)}
+                    disabled={applyingBanner}
+                  >
+                    {t('event.banner.discard')}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
