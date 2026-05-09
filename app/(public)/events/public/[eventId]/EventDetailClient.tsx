@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Calendar, ExternalLink, Trophy, Vote } from 'lucide-react'
+import { ArrowRight, Calendar, ExternalLink, Trophy, Vote } from 'lucide-react'
 import { useT, useLocale } from '@/lib/i18n'
 import { formatDate as formatDeterministic } from '@/lib/format-date'
 import PublicNavbar from '@/components/PublicNavbar'
@@ -90,6 +90,7 @@ export default function EventDetailClient({ event }: { event: EventDetail }) {
   const [loggedIn, setLoggedIn] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
   const [registered, setRegistered] = useState(false)
+  const zh = locale === 'zh'
 
   function statusInfo(status: string) {
     switch (status) {
@@ -122,6 +123,10 @@ export default function EventDetailClient({ event }: { event: EventDetail }) {
   const voteResultsVisible = voteEnabled && voteConfig?.show_realtime_count
 
   const { text: statusText, color: statusColor } = statusInfo(event.status)
+
+  const scrollToRegistration = () => {
+    document.getElementById('registration')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -228,6 +233,40 @@ export default function EventDetailClient({ event }: { event: EventDetail }) {
                 text={event.description}
                 className="prose prose-sm dark:prose-invert prose-p:text-fg prose-li:text-fg prose-headings:text-fg prose-strong:text-fg max-w-none mb-8"
               />
+            )}
+
+            {authChecked && !registered && isRecruiting && isRegOpen && (
+              <section id="registration" className="scroll-mt-24 mb-8 rounded-xl border border-token bg-surface-1 p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-2">
+                    <Badge variant="secondary" className="w-fit">
+                      {zh ? '报名入口' : 'Registration'}
+                    </Badge>
+                    <div>
+                      <h2 className="text-lg font-semibold text-fg">
+                        {zh ? '完成活动报名' : 'Apply for this event'}
+                      </h2>
+                      <p className="mt-1 text-sm leading-relaxed text-fg-muted">
+                        {zh
+                          ? '确认活动信息后，进入报名表填写团队与项目信息。提交后可在个人活动中查看审核状态。'
+                          : 'Review the event details, then complete the registration form with your team and project information.'}
+                      </p>
+                    </div>
+                    {event.registration_deadline && (
+                      <div className="inline-flex items-center gap-2 rounded-md border border-token bg-bg px-3 py-2 text-xs text-fg-muted">
+                        <Calendar size={14} className="text-fg-subtle" />
+                        <span>{t('pub.detail.regDeadline')}: {formatDate(event.registration_deadline)}</span>
+                      </div>
+                    )}
+                  </div>
+                  <Link href={`/apply/${event.id}`} className="shrink-0">
+                    <Button className="w-full gap-1.5 sm:w-auto">
+                      {t('pub.apply')}
+                      <ArrowRight size={14} />
+                    </Button>
+                  </Link>
+                </div>
+              </section>
             )}
 
             {event.tracks && event.tracks.length > 0 && (
@@ -443,9 +482,10 @@ export default function EventDetailClient({ event }: { event: EventDetail }) {
                     </Link>
                   ) : isRecruiting && isRegOpen ? (
                     loggedIn ? (
-                      <Link href={`/apply/${event.id}`}>
-                        <Button className="w-full">{t('pub.apply')}</Button>
-                      </Link>
+                      <Button className="w-full gap-1.5" onClick={scrollToRegistration}>
+                        {t('pub.apply')}
+                        <ArrowRight size={14} />
+                      </Button>
                     ) : (
                       <Link href={`/login?redirect=${encodeURIComponent(`/apply/${event.id}`)}`}>
                         <Button className="w-full">{t('pub.detail.signInToApply')}</Button>

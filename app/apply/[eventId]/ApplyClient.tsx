@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { Loader2, CheckCircle2, XCircle, Clock, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
-import { useT, type TranslationKey } from '@/lib/i18n'
+import { useLocale, useT, type TranslationKey } from '@/lib/i18n'
 import EventCover from '@/components/EventCover'
 
 // Strip HTML tags with a simple regex — no jsdom (isomorphic-dompurify pulls jsdom
@@ -142,6 +142,8 @@ function CountdownChip({
 export default function ApplyClient({ eventConfig }: { eventConfig: EventConfig }) {
   const router = useRouter()
   const t = useT()
+  const [locale] = useLocale()
+  const zh = locale === 'zh'
   const eventId = eventConfig.id
 
   const [submitting, setSubmitting] = useState(false)
@@ -325,163 +327,185 @@ export default function ApplyClient({ eventConfig }: { eventConfig: EventConfig 
   }
 
   const fields = config?.fields ?? []
+  const description = eventConfig.description ? stripHtml(eventConfig.description) : ''
 
   return (
-    <div className="min-h-screen bg-surface py-12 px-4">
-      <div className="max-w-lg mx-auto space-y-6">
-        {eventConfig.banner_url && (
-          <EventCover src={eventConfig.banner_url} className="rounded-xl" />
-        )}
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold">{eventConfig.name}</h1>
-          {eventConfig.description && (
-            <p className="text-muted-foreground text-sm whitespace-pre-line">
-              {stripHtml(eventConfig.description)}
-            </p>
-          )}
+    <div className="min-h-screen bg-bg px-4 py-10">
+      <div className="mx-auto max-w-5xl space-y-6">
+        <div>
+          <Link href={`/events/public/${eventId}`} className="text-sm text-fg-subtle hover:text-fg">
+            {t('apply.viewEvent')}
+          </Link>
         </div>
 
-        {isOpen && (eventConfig.registration_deadline || eventConfig.submission_deadline) && (
-          <div className="flex flex-wrap gap-2">
-            {eventConfig.registration_deadline && (
-              <CountdownChip
-                label={t('reg.countdown.registration')}
-                deadline={eventConfig.registration_deadline}
-                remaining={regCountdown}
-                closedLabel={t('reg.countdown.closed')}
-                t={t}
-              />
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(420px,0.9fr)] lg:items-start">
+          <section className="space-y-5">
+            {eventConfig.banner_url && (
+              <EventCover src={eventConfig.banner_url} className="rounded-xl" />
             )}
-            {eventConfig.submission_deadline && (
-              <CountdownChip
-                label={t('reg.countdown.submission')}
-                deadline={eventConfig.submission_deadline}
-                remaining={subCountdown}
-                closedLabel={t('reg.countdown.closed')}
-                t={t}
-              />
-            )}
-          </div>
-        )}
 
-        {!isOpen && (
-          <Card>
-            <CardContent className="py-8 text-center space-y-3">
-              <p className="text-muted-foreground">{t('reg.applyBtnNotOpen')}</p>
-              <Link href={`/events/public/${eventId}`}>
-                <Button variant="outline" size="sm">{t('apply.viewEvent')}</Button>
-              </Link>
-            </CardContent>
-          </Card>
-        )}
+            <div className="rounded-xl border border-token bg-surface-1 p-6">
+              <Badge variant="secondary" className="mb-3">{t('reg.applyBtn')}</Badge>
+              <h1 className="text-3xl font-bold leading-tight text-fg">{eventConfig.name}</h1>
+              {description && (
+                <p className="mt-3 text-sm leading-relaxed text-fg-muted">
+                  {description.length > 520 ? `${description.slice(0, 520)}...` : description}
+                </p>
+              )}
+            </div>
 
-        {isOpen && isClosed && (
-          <Card>
-            <CardContent className="py-8 text-center space-y-3">
-              <p className="text-muted-foreground">{t('reg.closed')}</p>
-              <Link href={`/events/public/${eventId}`}>
-                <Button variant="outline" size="sm">{t('apply.viewEvent')}</Button>
-              </Link>
-            </CardContent>
-          </Card>
-        )}
-
-        {isOpen && !isClosed && submitStatus === 'rejected' && (
-          <Card className="border-red-200 bg-red-50/40">
-            <CardContent className="py-4 flex gap-3">
-              <XCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-red-700">{t('reg.rejectedStatus')}</p>
-                <p className="text-sm text-red-700/80">{t('reg.alreadyRegistered.rejectedDesc')}</p>
-                {rejectReason && (
-                  <p className="text-xs text-red-700/80 pt-1">{rejectReason}</p>
-                )}
+            {isOpen && (eventConfig.registration_deadline || eventConfig.submission_deadline) && (
+              <div className="rounded-xl border border-token bg-surface-1 p-5">
+                <p className="mb-3 text-sm font-medium text-fg">{t('reg.applyBtn')}</p>
+                <div className="flex flex-wrap gap-2">
+                  {eventConfig.registration_deadline && (
+                    <CountdownChip
+                      label={t('reg.countdown.registration')}
+                      deadline={eventConfig.registration_deadline}
+                      remaining={regCountdown}
+                      closedLabel={t('reg.countdown.closed')}
+                      t={t}
+                    />
+                  )}
+                  {eventConfig.submission_deadline && (
+                    <CountdownChip
+                      label={t('reg.countdown.submission')}
+                      deadline={eventConfig.submission_deadline}
+                      remaining={subCountdown}
+                      closedLabel={t('reg.countdown.closed')}
+                      t={t}
+                    />
+                  )}
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            )}
+          </section>
 
-        {isOpen && !isClosed && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{t('reg.applyBtn')}</CardTitle>
-              <CardDescription>{eventConfig.name}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {fields.map(field => {
-                  if (field.key === 'track_id') {
-                    const trackList = eventConfig.tracks ?? []
-                    return (
-                      <div key={field.key} className="space-y-1.5">
-                        <Label htmlFor={field.key}>
-                          {resolveFieldLabel(field, t)}
-                          {field.required && <span className="text-red-500 ml-1">*</span>}
-                        </Label>
-                        <select
-                          id={field.key}
-                          value={formValues[field.key] ?? ''}
-                          onChange={e => setFormValues(v => ({ ...v, [field.key]: e.target.value }))}
-                          className="w-full border rounded-md px-3 py-2 text-sm bg-bg focus:outline-none focus:ring-2 focus:ring-ring"
-                          required={field.required}
-                        >
-                          <option value="">{t('reg.trackPlaceholder')}</option>
-                          {trackList.map(tr => (
-                            <option key={tr.id} value={tr.id}>{tr.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )
-                  }
+          <section className="space-y-4">
+            {!isOpen && (
+              <Card className="border-token">
+                <CardContent className="py-8 text-center space-y-3">
+                  <p className="text-muted-foreground">{t('reg.applyBtnNotOpen')}</p>
+                  <Link href={`/events/public/${eventId}`}>
+                    <Button variant="outline" size="sm">{t('apply.viewEvent')}</Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            )}
 
-                  if (field.type === 'textarea') {
-                    return (
-                      <div key={field.key} className="space-y-1.5">
-                        <Label htmlFor={field.key}>
-                          {resolveFieldLabel(field, t)}
-                          {field.required && <span className="text-red-500 ml-1">*</span>}
-                        </Label>
-                        <Textarea
-                          id={field.key}
-                          rows={3}
-                          value={formValues[field.key] ?? ''}
-                          onChange={e => setFormValues(v => ({ ...v, [field.key]: e.target.value }))}
-                          required={field.required}
-                        />
-                      </div>
-                    )
-                  }
+            {isOpen && isClosed && (
+              <Card className="border-token">
+                <CardContent className="py-8 text-center space-y-3">
+                  <p className="text-muted-foreground">{t('reg.closed')}</p>
+                  <Link href={`/events/public/${eventId}`}>
+                    <Button variant="outline" size="sm">{t('apply.viewEvent')}</Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            )}
 
-                  return (
-                    <div key={field.key} className="space-y-1.5">
-                      <Label htmlFor={field.key}>
-                        {resolveFieldLabel(field, t)}
-                        {field.required && <span className="text-red-500 ml-1">*</span>}
-                      </Label>
-                      <Input
-                        id={field.key}
-                        type={field.type === 'url' ? 'url' : 'text'}
-                        value={formValues[field.key] ?? ''}
-                        onChange={e => setFormValues(v => ({ ...v, [field.key]: e.target.value }))}
-                        required={field.required}
-                        placeholder={field.type === 'url' ? 'https://' : ''}
-                      />
-                    </div>
-                  )
-                })}
+            {isOpen && !isClosed && submitStatus === 'rejected' && (
+              <Card className="border-red-200 bg-red-50/40">
+                <CardContent className="py-4 flex gap-3">
+                  <XCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-red-700">{t('reg.rejectedStatus')}</p>
+                    <p className="text-sm text-red-700/80">{t('reg.alreadyRegistered.rejectedDesc')}</p>
+                    {rejectReason && (
+                      <p className="text-xs text-red-700/80 pt-1">{rejectReason}</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-                <Button type="submit" className="w-full" disabled={submitting}>
-                  {submitting ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin mr-2" />
-                      {t('reg.submitting')}
-                    </>
-                  ) : t('reg.applyBtn')}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        )}
+            {isOpen && !isClosed && (
+              <Card className="border-token">
+                <CardHeader>
+                  <CardTitle className="text-xl">{t('reg.applyBtn')}</CardTitle>
+                  <CardDescription>
+                    {zh
+                      ? `${fields.length} 个报名字段`
+                      : `${fields.length} registration ${fields.length === 1 ? 'field' : 'fields'}`}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    {fields.map(field => {
+                      if (field.key === 'track_id') {
+                        const trackList = eventConfig.tracks ?? []
+                        return (
+                          <div key={field.key} className="space-y-1.5">
+                            <Label htmlFor={field.key}>
+                              {resolveFieldLabel(field, t)}
+                              {field.required && <span className="text-red-500 ml-1">*</span>}
+                            </Label>
+                            <select
+                              id={field.key}
+                              value={formValues[field.key] ?? ''}
+                              onChange={e => setFormValues(v => ({ ...v, [field.key]: e.target.value }))}
+                              className="w-full border rounded-md px-3 py-2 text-sm bg-bg focus:outline-none focus:ring-2 focus:ring-ring"
+                              required={field.required}
+                            >
+                              <option value="">{t('reg.trackPlaceholder')}</option>
+                              {trackList.map(tr => (
+                                <option key={tr.id} value={tr.id}>{tr.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )
+                      }
+
+                      if (field.type === 'textarea') {
+                        return (
+                          <div key={field.key} className="space-y-1.5">
+                            <Label htmlFor={field.key}>
+                              {resolveFieldLabel(field, t)}
+                              {field.required && <span className="text-red-500 ml-1">*</span>}
+                            </Label>
+                            <Textarea
+                              id={field.key}
+                              rows={3}
+                              value={formValues[field.key] ?? ''}
+                              onChange={e => setFormValues(v => ({ ...v, [field.key]: e.target.value }))}
+                              required={field.required}
+                            />
+                          </div>
+                        )
+                      }
+
+                      return (
+                        <div key={field.key} className="space-y-1.5">
+                          <Label htmlFor={field.key}>
+                            {resolveFieldLabel(field, t)}
+                            {field.required && <span className="text-red-500 ml-1">*</span>}
+                          </Label>
+                          <Input
+                            id={field.key}
+                            type={field.type === 'url' ? 'url' : 'text'}
+                            value={formValues[field.key] ?? ''}
+                            onChange={e => setFormValues(v => ({ ...v, [field.key]: e.target.value }))}
+                            required={field.required}
+                            placeholder={field.type === 'url' ? 'https://' : ''}
+                          />
+                        </div>
+                      )
+                    })}
+
+                    <Button type="submit" className="w-full" disabled={submitting}>
+                      {submitting ? (
+                        <>
+                          <Loader2 size={14} className="animate-spin mr-2" />
+                          {t('reg.submitting')}
+                        </>
+                      ) : t('reg.applyBtn')}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            )}
+          </section>
+        </div>
       </div>
     </div>
   )
