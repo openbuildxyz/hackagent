@@ -75,12 +75,31 @@ const MODEL_COLOR: Record<string, string> = {
 }
 
 const STATUS_CLS: Record<string, string> = {
-  pending:   'text-yellow-600 bg-yellow-50',
-  running:   'text-blue-600 bg-blue-50',
-  completed: 'text-green-700 bg-green-50',
-  partial:   'text-amber-700 bg-amber-50',
-  error:     'text-red-500 bg-red-50',
+  pending:   'text-yellow-600 bg-yellow-50 dark:bg-yellow-400/15 dark:text-yellow-300',
+  running:   'text-blue-600 bg-blue-50 dark:bg-blue-400/15 dark:text-blue-300',
+  completed: 'text-green-700 bg-green-50 dark:bg-green-400/15 dark:text-green-300',
+  partial:   'text-amber-700 bg-amber-50 dark:bg-amber-400/15 dark:text-amber-300',
+  error:     'text-red-500 bg-red-50 dark:bg-red-400/15 dark:text-red-300',
 }
+
+const FILTER_PILL_BASE = 'px-2.5 py-1 text-xs rounded-full border transition-colors'
+const FILTER_PILL_ACTIVE = 'bg-[var(--color-fg)] text-white border-[var(--color-fg)] dark:bg-white/10 dark:text-white dark:border-white/40'
+const FILTER_PILL_IDLE = 'border-token text-fg-muted bg-bg hover:text-[var(--color-fg)] hover:border-[var(--color-border-strong)] dark:border-[var(--color-border-strong)]'
+const SELECT_TRIGGER_CLS = 'bg-bg border-token text-fg hover:border-[var(--color-border-strong)] dark:border-[var(--color-border-strong)]'
+
+const BADGE_CLS = {
+  green: 'bg-green-50 text-green-600 border-green-100 dark:bg-green-400/15 dark:text-green-300 dark:border-green-400/30',
+  red: 'bg-red-50 text-red-500 border-red-100 dark:bg-red-400/15 dark:text-red-300 dark:border-red-400/30',
+  orange: 'bg-orange-50 text-orange-500 border-orange-100 dark:bg-orange-400/15 dark:text-orange-300 dark:border-orange-400/30',
+  yellow: 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-400/15 dark:text-yellow-300 dark:border-yellow-400/30',
+  blue: 'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-400/15 dark:text-blue-300 dark:border-blue-400/30',
+  blueStrong: 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-400/15 dark:text-blue-200 dark:border-blue-400/30',
+  purple: 'bg-purple-50 text-purple-600 border-purple-100 dark:bg-purple-400/15 dark:text-purple-300 dark:border-purple-400/30',
+}
+
+const ratingTextClass = (rating: string) => (
+  rating === 'A' || rating === 'B' || rating === 'C' ? 'dark:text-neutral-950' : 'dark:text-white'
+)
 
 const PROGRESS_LABEL: Record<string, string> = {
   pending: '待分析',
@@ -153,7 +172,7 @@ function SummaryBlock({ text, variant = 'ai' }: { text: string; variant?: 'ai' |
   const [expanded, setExpanded] = useState(false)
   const isLong = text.length > 500
   const cls = variant === 'ai'
-    ? 'border-l-2 border-blue-400 pl-3 text-fg-muted bg-blue-50/50 py-1.5 pr-2 rounded-r text-[11px] leading-relaxed'
+    ? 'border-l-2 border-blue-400 pl-3 text-fg-muted bg-blue-50/50 dark:bg-blue-400/10 dark:border-blue-300 py-1.5 pr-2 rounded-r text-[11px] leading-relaxed'
     : 'text-fg-muted text-[11px] leading-relaxed'
   return (
     <div className={cls}>
@@ -407,7 +426,7 @@ export default function ProjectsTable({
                     </Button>
                   )}
                   {projects.length > 0 && !isDone && (
-                    <Button size="sm" variant="ghost" className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50"
+                    <Button size="sm" variant="ghost" className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:text-red-200 dark:hover:bg-red-400/15"
                       disabled={deleting} onClick={() => confirmDelete('all')}>
                       <Trash2 size={13} className="mr-1" />{t('table.clearAll')}
                     </Button>
@@ -425,12 +444,12 @@ export default function ProjectsTable({
             <div className="flex gap-1">
               <button
                 onClick={() => setModelFilter('avg')}
-                className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${modelFilter === 'avg' ? 'bg-[var(--color-fg)] text-white border-[var(--color-fg)]' : 'border-token text-fg-muted hover:border-[var(--color-border-strong)]'}`}
+                className={`${FILTER_PILL_BASE} ${modelFilter === 'avg' ? FILTER_PILL_ACTIVE : FILTER_PILL_IDLE}`}
               >{t('table.avgScore')}</button>
               {availableModels.map(m => (
                 <button key={m}
                   onClick={() => setModelFilter(m)}
-                  className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${modelFilter === m ? 'text-white border-transparent' : 'border-token text-fg-muted hover:border-[var(--color-border-strong)]'}`}
+                  className={`${FILTER_PILL_BASE} ${modelFilter === m ? 'text-white border-transparent dark:border-white/30 shadow-sm' : FILTER_PILL_IDLE}`}
                   style={modelFilter === m ? { backgroundColor: MODEL_COLOR[m] ?? '#6b7280' } : {}}
                 >{MODEL_LABEL[m] ?? m}</button>
               ))}
@@ -449,7 +468,7 @@ export default function ProjectsTable({
             onChange={e => setSearchQuery(e.target.value)}
           />
           <Select value={scoreFilter} onValueChange={setScoreFilter}>
-            <SelectTrigger className="w-[130px] h-8 text-xs">
+            <SelectTrigger className={`w-[130px] h-8 text-xs ${SELECT_TRIGGER_CLS}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -461,7 +480,7 @@ export default function ProjectsTable({
             </SelectContent>
           </Select>
           <Select value={codeFilter} onValueChange={setCodeFilter}>
-            <SelectTrigger className="w-[140px] h-8 text-xs">
+            <SelectTrigger className={`w-[140px] h-8 text-xs ${SELECT_TRIGGER_CLS}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -472,7 +491,7 @@ export default function ProjectsTable({
             </SelectContent>
           </Select>
           <Select value={web3Filter} onValueChange={setWeb3Filter}>
-            <SelectTrigger className="w-[140px] h-8 text-xs">
+            <SelectTrigger className={`w-[140px] h-8 text-xs ${SELECT_TRIGGER_CLS}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -483,7 +502,7 @@ export default function ProjectsTable({
           </Select>
           {tracks.length > 0 && (
             <Select value={trackFilter} onValueChange={setTrackFilter}>
-              <SelectTrigger className="w-[130px] h-8 text-xs">
+              <SelectTrigger className={`w-[130px] h-8 text-xs ${SELECT_TRIGGER_CLS}`}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -500,11 +519,11 @@ export default function ProjectsTable({
           <div className="flex items-center gap-1 ml-auto">
             <button
               onClick={() => setScoreMode('llm')}
-              className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${scoreMode === 'llm' ? 'bg-[var(--color-fg)] text-white border-[var(--color-fg)]' : 'border-token text-fg-muted hover:border-[var(--color-border-strong)]'}`}
+              className={`${FILTER_PILL_BASE} ${scoreMode === 'llm' ? FILTER_PILL_ACTIVE : FILTER_PILL_IDLE}`}
             >{t('table.scoreMode.llm')}</button>
             <button
               onClick={() => setScoreMode('llmCode')}
-              className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${scoreMode === 'llmCode' ? 'bg-[var(--color-fg)] text-white border-[var(--color-fg)]' : 'border-token text-fg-muted hover:border-[var(--color-border-strong)]'}`}
+              className={`${FILTER_PILL_BASE} ${scoreMode === 'llmCode' ? FILTER_PILL_ACTIVE : FILTER_PILL_IDLE}`}
             >{t('table.scoreMode.llmCode')}</button>
           </div>
         </div>
@@ -516,12 +535,12 @@ export default function ProjectsTable({
         <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-0.5" style={{flexWrap:"nowrap"}}>
           <button
             onClick={() => setTrackFilter('all')}
-            className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${trackFilter === 'all' ? 'bg-[var(--color-fg)] text-white border-[var(--color-fg)]' : 'border-token text-fg-muted hover:border-[var(--color-border-strong)]'}`}
+            className={`${FILTER_PILL_BASE} ${trackFilter === 'all' ? FILTER_PILL_ACTIVE : FILTER_PILL_IDLE}`}
           >{t('track.all')}</button>
           {tracks.map(tr => (
             <button key={tr.id}
               onClick={() => setTrackFilter(tr.id)}
-              className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${trackFilter === tr.id ? 'bg-purple-600 text-white border-purple-600' : 'border-token text-fg-muted hover:border-[var(--color-border-strong)]'}`}
+              className={`${FILTER_PILL_BASE} ${trackFilter === tr.id ? 'bg-purple-600 text-white border-purple-600 dark:bg-purple-500 dark:border-purple-300/50' : FILTER_PILL_IDLE}`}
             >{tr.name}{trackCounts[tr.id] != null ? ` (${trackCounts[tr.id]})` : ""}</button>
           ))}
         </div>
@@ -567,7 +586,7 @@ export default function ProjectsTable({
               return (
                 <React.Fragment key={project.id}>
                 <TableRow
-                  className={`hover:bg-[var(--color-surface)]/50 transition-colors ${selected.has(project.id) ? 'bg-blue-50/30' : ''}`}>
+                  className={`hover:bg-[var(--color-surface)]/50 transition-colors ${selected.has(project.id) ? 'bg-blue-50/30 dark:bg-blue-400/10' : ''}`}>
                   {isOwner && (
                     <TableCell>
                       <Checkbox checked={selected.has(project.id)} onCheckedChange={() => toggleOne(project.id)} />
@@ -595,7 +614,7 @@ export default function ProjectsTable({
                     {tracks.length > 0 && (project.track_ids ?? []).length > 0 && (project.track_ids ?? []).map(tid => {
                       const tr = tracks.find(t => t.id === tid)
                       return tr ? (
-                        <span key={tid} className="mt-0.5 inline-block text-[10px] text-purple-600 bg-purple-50 border border-purple-100 px-1.5 py-0 rounded-sm whitespace-nowrap">
+                        <span key={tid} className={`mt-0.5 inline-block text-[10px] border px-1.5 py-0 rounded-sm whitespace-nowrap ${BADGE_CLS.purple}`}>
                           {tr.name}
                         </span>
                       ) : null
@@ -636,8 +655,8 @@ export default function ProjectsTable({
                               const h = r ? Math.max(2, Math.round((r.score / 10) * 20)) : 2
                               return (
                                 <div key={m} title={`${MODEL_LABEL[m]}: ${r?.score ?? '—'}`}
-                                  className="w-2 rounded-sm opacity-80 transition-all"
-                                  style={{ height: `${h}px`, backgroundColor: r ? MODEL_COLOR[m] : '#e5e7eb' }} />
+                                  className="w-2 rounded-sm opacity-90 ring-1 ring-black/5 dark:ring-white/25 transition-all"
+                                  style={{ height: `${h}px`, backgroundColor: r ? MODEL_COLOR[m] : 'var(--color-surface-2)' }} />
                               )
                             })}
                           </div>
@@ -692,10 +711,10 @@ export default function ProjectsTable({
                   const dimensions = aiReview?.dimensions ?? null
                   const revSubs = project.reviewer_submissions?.filter(r => !r.error && (r.score ?? 0) > 0) ?? []
                   const codeStatusBadge = flags.length === 0
-                    ? <span className="px-1.5 py-0.5 rounded text-[10px] bg-green-50 text-green-600 border border-green-100">正常</span>
+                    ? <span className={`px-1.5 py-0.5 rounded text-[10px] border ${BADGE_CLS.green}`}>正常</span>
                     : flags.includes('llm_fake_code')
-                    ? <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-50 text-red-500 border border-red-100">疑似AI代码</span>
-                    : <span className="px-1.5 py-0.5 rounded text-[10px] bg-orange-50 text-orange-500 border border-orange-100">存疑</span>
+                    ? <span className={`px-1.5 py-0.5 rounded text-[10px] border ${BADGE_CLS.red}`}>疑似AI代码</span>
+                    : <span className={`px-1.5 py-0.5 rounded text-[10px] border ${BADGE_CLS.orange}`}>存疑</span>
 
                   return (
                     <tr key={`${project.id}-expanded`}>
@@ -782,11 +801,11 @@ export default function ProjectsTable({
                                   )}
                                   <div className="flex items-center justify-between py-1">
                                     <span className="text-fg-subtle text-xs">{t('table.readme')}</span>
-                                    <span className={`px-1.5 py-0.5 rounded text-[10px] border ${gh.has_readme ? 'bg-green-50 text-green-600 border-green-100' : 'bg-surface-2 text-fg-subtle border-token'}`}>{gh.has_readme ? '✓ 有' : '✗ 无'}</span>
+                                    <span className={`px-1.5 py-0.5 rounded text-[10px] border ${gh.has_readme ? BADGE_CLS.green : 'bg-surface-2 text-fg-subtle border-token dark:text-fg-muted dark:border-[var(--color-border-strong)]'}`}>{gh.has_readme ? '✓ 有' : '✗ 无'}</span>
                                   </div>
                                   <div className="flex items-center justify-between py-1">
                                     <span className="text-fg-subtle text-xs">测试</span>
-                                    <span className={`px-1.5 py-0.5 rounded text-[10px] border ${gh.has_tests ? 'bg-green-50 text-green-600 border-green-100' : 'bg-surface-2 text-fg-subtle border-token'}`}>{gh.has_tests ? '✓ 有' : '✗ 无'}</span>
+                                    <span className={`px-1.5 py-0.5 rounded text-[10px] border ${gh.has_tests ? BADGE_CLS.green : 'bg-surface-2 text-fg-subtle border-token dark:text-fg-muted dark:border-[var(--color-border-strong)]'}`}>{gh.has_tests ? '✓ 有' : '✗ 无'}</span>
                                   </div>
                                 </>
                               ) : (
@@ -814,7 +833,7 @@ export default function ProjectsTable({
                                       <span className="text-fg-subtle text-xs">{((ar.web3_analysis.twitter.followers ?? ar.web3_analysis.twitter.followers_count) as number).toLocaleString()}</span>
                                     )}
                                     {ar.web3_analysis.twitter.is_kol && (
-                                      <span className="inline-flex items-center px-1 py-0.5 rounded text-[10px] bg-yellow-50 text-yellow-700 border border-yellow-200 font-medium leading-none">KOL</span>
+                                      <span className={`inline-flex items-center px-1 py-0.5 rounded text-[10px] border font-medium leading-none ${BADGE_CLS.yellow}`}>KOL</span>
                                     )}
                                   </a>
                                 </div>
@@ -827,8 +846,8 @@ export default function ProjectsTable({
                                 {w3 && (w3.total_score ?? 0) > 0 && (
                                   <div className="flex items-center gap-2 mb-2">
                                     <span className="text-fg-subtle text-xs">{t('table.web3Score')}</span>
-                                    <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100">{w3.total_score}</span>
-                                    {w3.top_ecosystem && <span className="px-1.5 py-0.5 rounded text-[10px] bg-purple-50 text-purple-600 border border-purple-100">{w3.top_ecosystem}</span>}
+                                    <span className={`px-2 py-0.5 rounded text-xs font-bold border ${BADGE_CLS.blueStrong}`}>{w3.total_score}</span>
+                                    {w3.top_ecosystem && <span className={`px-1.5 py-0.5 rounded text-[10px] border ${BADGE_CLS.purple}`}>{w3.top_ecosystem}</span>}
                                   </div>
                                 )}
                                 <p className="text-fg-subtle text-xs mb-1.5">{t('table.contributors')} ({contribs.length})</p>
@@ -838,10 +857,10 @@ export default function ProjectsTable({
                                       <a href={`https://github.com/${c.username}`} target="_blank" rel="noopener noreferrer"
                                         className="text-fg-muted text-xs hover:text-blue-600 hover:underline">@{c.username}</a>
                                       {c.is_web3_dev && (
-                                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-green-50 text-green-600 border border-green-100">Web3 ✓</span>
+                                        <span className={`px-1.5 py-0.5 rounded text-[10px] border ${BADGE_CLS.green}`}>Web3 ✓</span>
                                       )}
                                       {c.top_eco && (
-                                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-50 text-blue-600 border border-blue-100">{c.top_eco}</span>
+                                        <span className={`px-1.5 py-0.5 rounded text-[10px] border ${BADGE_CLS.blue}`}>{c.top_eco}</span>
                                       )}
                                       {(c.web3_score != null && c.web3_score > 0) && (
                                         <span className="text-fg-subtle text-[10px]">{c.web3_score}分</span>
@@ -885,7 +904,7 @@ export default function ProjectsTable({
                                     {revSubs.map(r => (
                                       <div key={r.model} className="flex items-center justify-between bg-bg rounded px-2 py-1 border border-token">
                                         <div className="flex items-center gap-1.5">
-                                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: MODEL_COLOR[r.model] ?? '#6b7280' }} />
+                                          <span className="w-1.5 h-1.5 rounded-full shrink-0 ring-1 ring-black/10 dark:ring-white/35" style={{ backgroundColor: MODEL_COLOR[r.model] ?? '#6b7280' }} />
                                           <span className="text-xs text-fg-muted">{MODEL_LABEL[r.model] ?? r.model}</span>
                                           <span className="text-xs font-bold" style={{ color: scoreColor(r.score) }}>{r.score.toFixed(1)}</span>
                                         </div>
@@ -901,8 +920,8 @@ export default function ProjectsTable({
                                 ) : (
                                   <div className="flex flex-wrap gap-1">
                                     {revSubs.map(r => (
-                                      <span key={r.model} className="flex items-center gap-1 px-1.5 py-0.5 bg-surface-2 rounded text-[10px]">
-                                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: MODEL_COLOR[r.model] ?? '#6b7280' }} />
+                                      <span key={r.model} className="flex items-center gap-1 px-1.5 py-0.5 bg-surface-2 border border-token rounded text-[10px] text-fg-muted">
+                                        <span className="w-1.5 h-1.5 rounded-full shrink-0 ring-1 ring-black/10 dark:ring-white/35" style={{ backgroundColor: MODEL_COLOR[r.model] ?? '#6b7280' }} />
                                         {MODEL_LABEL[r.model] ?? r.model}: <strong>{r.score}</strong>
                                       </span>
                                     ))}
@@ -955,7 +974,7 @@ export default function ProjectsTable({
                                     const r = numToRating(val)
                                     return (
                                       <div key={label} className="text-center flex-1">
-                                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-xs mx-auto"
+                                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-xs mx-auto border border-black/10 shadow-sm dark:border-white/35 ${ratingTextClass(r)}`}
                                           style={{ backgroundColor: ratingColor[r] ?? '#9ca3af' }}>
                                           {r}
                                         </div>
