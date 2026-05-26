@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
-import { getSessionUser } from '@/lib/session'
+import { getSessionUserWithRole } from '@/lib/session'
 import { deductCredits } from '@/lib/credits'
 
 // POST /api/events/[eventId]/credits-deduct
@@ -9,19 +9,16 @@ export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
-  const session = await getSessionUser()
+  const session = await getSessionUserWithRole()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { eventId } = await params
   const db = createServiceClient()
 
-  // Verify event ownership
-  const { data: event } = await db
-    .from('events')
-    .select('id, models, web3_enabled')
-    .eq('id', eventId)
-    .eq('user_id', session.userId)
-    .single()
+  // Verify event ownership (OPE-25: admins can manage any event)
+  let eventQuery = db.from('events').select('id, models, web3_enabled').eq('id', eventId)
+  if (!session.isAdmin) eventQuery = eventQuery.eq('user_id', session.userId)
+  const { data: event } = await eventQuery.maybeSingle()
 
   if (!event) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
 

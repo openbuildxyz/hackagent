@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
-import { getSessionUser } from '@/lib/session'
+import { getSessionUserWithRole } from '@/lib/session'
 import { scoreProject } from '@/lib/ai'
 import { buildWeb3InsightSummary } from '@/lib/web3insight'
 
@@ -27,19 +27,16 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
-  const session = await getSessionUser()
+  const session = await getSessionUserWithRole()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { eventId } = await params
   const db = createServiceClient()
 
-  // Verify ownership
-  const { data: event } = await db
-    .from('events')
-    .select('id, name, models, dimensions, web3_enabled, user_id')
-    .eq('id', eventId)
-    .eq('user_id', session.userId)
-    .single()
+  // Verify ownership (OPE-25: admins can manage any event)
+  let eventQuery = db.from('events').select('id, name, models, dimensions, web3_enabled, user_id').eq('id', eventId)
+  if (!session.isAdmin) eventQuery = eventQuery.eq('user_id', session.userId)
+  const { data: event } = await eventQuery.maybeSingle()
 
   if (!event) return NextResponse.json({ error: '活动不存在或无权操作' }, { status: 404 })
 
@@ -197,7 +194,7 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
-  const session = await getSessionUser()
+  const session = await getSessionUserWithRole()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { eventId } = await params

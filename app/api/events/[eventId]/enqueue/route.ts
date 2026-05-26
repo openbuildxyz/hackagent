@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
-import { getSessionUser } from '@/lib/session'
+import { getSessionUserWithRole } from '@/lib/session'
 
 // POST /api/events/[eventId]/enqueue
 // Enqueue all unanalyzed projects into analysis_queue for VPS worker
@@ -8,19 +8,19 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
-  const session = await getSessionUser()
+  const session = await getSessionUserWithRole()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { eventId } = await params
   const db = createServiceClient()
 
-  // Verify ownership or reviewer access
+  // Verify ownership or reviewer access (OPE-25: admins can manage any event)
   const { data: event } = await db.from('events').select('id, models, user_id').eq('id', eventId).single()
   if (!event) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
 
-  // Allow owner or reviewer
+  // Allow admin, owner, or reviewer
   const isOwner = event.user_id === session.userId
-  if (!isOwner) {
+  if (!session.isAdmin && !isOwner) {
     const { data: reviewer } = await db.from('event_reviewers').select('id').eq('event_id', eventId).eq('user_id', session.userId).single()
     if (!reviewer) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
