@@ -28,6 +28,10 @@ type ProjectAnalysisProgress = {
 type ProjectForProgress = {
   id: string
   analysis_status: string | null
+  analysis_result?: {
+    ai_reviews?: Array<{ model?: string | null; score?: number | null; error?: boolean | null }> | null
+    sonar_analysis?: unknown | null
+  } | null
   sonar_analysis?: unknown | null
 }
 
@@ -60,8 +64,15 @@ function buildAnalysisProgress(
     const queue = latestQueueByProject.get(project.id)
     const queueStatus = queue?.status ?? null
     const queueError = queue?.error ?? null
-    const aiCompleted = completedByProject.get(project.id)?.size ?? 0
+    const completedModels = completedByProject.get(project.id)
+    const aiReviewModels = new Set(
+      (project.analysis_result?.ai_reviews ?? [])
+        .filter(review => !review.error && (review.score ?? 0) > 0 && review.model)
+        .map(review => review.model as string)
+    )
+    const aiCompleted = completedModels?.size ?? aiReviewModels.size
     const sonarRequired = Boolean(event.sonar_enabled || queue?.sonar_enabled)
+    const sonarCompleted = Boolean(project.sonar_analysis || project.analysis_result?.sonar_analysis)
 
     let aiStatus: ProjectAnalysisProgress['ai']['status'] = 'pending'
     if (requiredModelCount === 0) aiStatus = 'completed'
@@ -72,15 +83,15 @@ function buildAnalysisProgress(
 
     let sonarStatus: ProjectAnalysisProgress['sonar']['status'] = 'skipped'
     if (sonarRequired) {
-      if (project.sonar_analysis) sonarStatus = 'completed'
+      if (sonarCompleted) sonarStatus = 'completed'
       else if (queueStatus === 'error' || project.analysis_status === 'error') sonarStatus = 'error'
       else if (queueStatus === 'running' || project.analysis_status === 'running') sonarStatus = 'running'
       else sonarStatus = 'pending'
     }
 
     const complete = aiStatus === 'completed' && (!sonarRequired || sonarStatus === 'completed')
-    const failed = aiStatus === 'error' || sonarStatus === 'error' || queueStatus === 'error'
-    const running = aiStatus === 'running' || sonarStatus === 'running' || queueStatus === 'running'
+    const failed = aiStatus === 'error' || sonarStatus === 'error'
+    const running = aiStatus === 'running' || sonarStatus === 'running'
     const partial = aiStatus === 'partial' || (sonarRequired && aiStatus === 'completed' && sonarStatus !== 'completed')
     const overall: ProjectAnalysisProgress['overall'] = complete
       ? 'completed'
