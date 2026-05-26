@@ -174,6 +174,8 @@ function AgentSnippetTabs({ zh }: { zh: boolean }) {
   )
 }
 
+// Hidden along with the Partners section for now.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function PartnerLogo({ name, url, brand, icon }: { name: string; url: string; brand?: string; icon?: string }) {
   const [stage, setStage] = useState<0 | 1 | 2>(0)
   const domain = url.replace(/^https?:\/\//, '').split('/')[0]
@@ -434,7 +436,7 @@ export default function LandingClient({ initialProjectsReviewed }: { initialProj
                   <div className="flex flex-wrap gap-1.5">
                     {[
                       { model: 'Claude', color: '#f97316' },
-                      { model: 'GPT-4o', color: '#a855f7' },
+                      { model: 'GPT-5.5', color: '#a855f7' },
                       { model: 'Gemini', color: '#22c55e' },
                       { model: 'MiniMax', color: '#3b82f6' },
                       { model: 'DeepSeek', color: '#06b6d4' },
@@ -596,7 +598,7 @@ export default function LandingClient({ initialProjectsReviewed }: { initialProj
         </div>
       </section>
 
-      {/* Partners */}
+      {/* Partners — hidden for now
       <section className="px-4 sm:px-6 lg:px-8 py-12 sm:py-14 border-t border-[var(--color-border)]">
         <div className="max-w-7xl mx-auto">
           <div className="text-center text-[11px] font-semibold text-[var(--color-fg-muted)] tracking-[0.18em] uppercase mb-8 font-mono">
@@ -612,6 +614,7 @@ export default function LandingClient({ initialProjectsReviewed }: { initialProj
           </div>
         </div>
       </section>
+      */}
 
       {/* CTA */}
       <section className="px-4 sm:px-6 lg:px-8 py-14 sm:py-20 max-w-7xl mx-auto">

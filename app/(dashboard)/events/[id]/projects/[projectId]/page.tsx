@@ -61,7 +61,7 @@ type EventData = {
 // ── Helpers ────────────────────────────────────────────────────────────────
 const MODEL_LABEL: Record<string, string> = {
   minimax: 'MiniMax M2.5', claude: 'Claude Sonnet 4.6', gemini: 'Gemini 2.5 Flash',
-  gpt4o: 'GPT-4o', deepseek: 'DeepSeek V3.2', kimi: 'Kimi K2.5', glm: 'GLM 5',
+  gpt4o: 'GPT-5.5', deepseek: 'DeepSeek V3.2', kimi: 'Kimi K2.5', glm: 'GLM 5',
 }
 const MODEL_COLOR: Record<string, string> = {
   minimax: '#3b82f6', claude: '#f97316', gemini: '#22c55e',

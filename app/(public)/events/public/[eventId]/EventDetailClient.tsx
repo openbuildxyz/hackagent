@@ -10,6 +10,7 @@ import { formatDate as formatDeterministic } from '@/lib/format-date'
 import PublicNavbar from '@/components/PublicNavbar'
 import EventStatusStepper from '@/components/EventStatusStepper'
 import EventCover from '@/components/EventCover'
+import EventRegistrationForm, { type CustomField } from '@/components/EventRegistrationForm'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
@@ -38,7 +39,11 @@ export type EventDetail = {
   description?: string
   banner_url?: string
   status: string
-  registration_config?: { open?: boolean }
+  registration_config?: {
+    open: boolean
+    auto_approve: boolean
+    fields: CustomField[]
+  } | null
   tracks?: Track[]
   registration_deadline?: string
   submission_deadline?: string
@@ -235,9 +240,9 @@ export default function EventDetailClient({ event }: { event: EventDetail }) {
               />
             )}
 
-            {authChecked && !registered && isRecruiting && isRegOpen && (
+            {authChecked && isRecruiting && (
               <section id="registration" className="scroll-mt-24 mb-8 rounded-xl border border-token bg-surface-1 p-5">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="space-y-2">
                     <Badge variant="secondary" className="w-fit">
                       {zh ? '报名入口' : 'Registration'}
@@ -248,8 +253,8 @@ export default function EventDetailClient({ event }: { event: EventDetail }) {
                       </h2>
                       <p className="mt-1 text-sm leading-relaxed text-fg-muted">
                         {zh
-                          ? '确认活动信息后，进入报名表填写团队与项目信息。提交后可在个人活动中查看审核状态。'
-                          : 'Review the event details, then complete the registration form with your team and project information.'}
+                          ? '确认活动信息后，直接填写团队与项目信息完成报名。提交后可在个人活动中查看审核状态。'
+                          : 'Review the event details, then complete registration here with your team and project information.'}
                       </p>
                     </div>
                     {event.registration_deadline && (
@@ -259,13 +264,23 @@ export default function EventDetailClient({ event }: { event: EventDetail }) {
                       </div>
                     )}
                   </div>
-                  <Link href={`/apply/${event.id}`} className="shrink-0">
-                    <Button className="w-full gap-1.5 sm:w-auto">
-                      {t('pub.apply')}
-                      <ArrowRight size={14} />
-                    </Button>
-                  </Link>
+                  <Button className="w-full gap-1.5 sm:w-auto" onClick={scrollToRegistration}>
+                    {t('pub.apply')}
+                    <ArrowRight size={14} />
+                  </Button>
                 </div>
+                <EventRegistrationForm
+                  eventConfig={{
+                    id: event.id,
+                    name: event.name,
+                    tracks: event.tracks ?? null,
+                    registration_deadline: event.registration_deadline ?? null,
+                    registration_config: event.registration_config ?? null,
+                  }}
+                  redirectPath={`/events/public/${event.id}#registration`}
+                  mode="embedded"
+                  onRegisteredChange={setRegistered}
+                />
               </section>
             )}
 
@@ -487,7 +502,7 @@ export default function EventDetailClient({ event }: { event: EventDetail }) {
                         <ArrowRight size={14} />
                       </Button>
                     ) : (
-                      <Link href={`/login?redirect=${encodeURIComponent(`/apply/${event.id}`)}`}>
+                      <Link href={`/login?redirect=${encodeURIComponent(`/events/public/${event.id}#registration`)}`}>
                         <Button className="w-full">{t('pub.detail.signInToApply')}</Button>
                       </Link>
                     )

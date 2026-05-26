@@ -3,7 +3,7 @@ export const MODEL_NAMES: Record<string, string> = {
   claude: 'Claude Sonnet 4.6',
   minimax: 'MiniMax M2.5',
   gemini: 'Gemini 2.5 Flash',
-  gpt4o: 'GPT-4o',
+  gpt4o: 'GPT-5.5',
   deepseek: 'DeepSeek V3.2',
   kimi: 'Kimi K2.5',
   glm: 'GLM 5',

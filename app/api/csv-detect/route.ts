@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/session'
-import { getZenmuxApiKey, getZenmuxChatApiBase } from '@/lib/zenmux'
+import { getChatConfigForModelKey } from '@/lib/zenmux'
 
-const API_BASE = getZenmuxChatApiBase()
-const API_KEY = getZenmuxApiKey()
-const MODEL = 'openai/gpt-4.1-nano'
+const { apiUrl: API_BASE, apiKey: API_KEY } = getChatConfigForModelKey('gpt4o')
+const MODEL = 'gpt-5.5'
 
 export interface ColumnMapping {
   name: string | null

@@ -1,4 +1,4 @@
-import { getZenmuxApiKey, getZenmuxChatApiBase } from './zenmux'
+import { getChatConfigForModelKey } from './zenmux'
 
 /**
  * Code analysis via GitHub API + LLM.
@@ -9,10 +9,11 @@ import { getZenmuxApiKey, getZenmuxChatApiBase } from './zenmux'
 const GITHUB_API = 'https://api.github.com'
 
 function getEnv() {
+  const { apiUrl, apiKey } = getChatConfigForModelKey('minimax')
   return {
     GITHUB_TOKEN: process.env.GITHUB_TOKEN || '',
-    ZENMUX_API_URL: getZenmuxChatApiBase(),
-    ZENMUX_API_KEY: getZenmuxApiKey(),
+    AI_API_URL: apiUrl,
+    AI_API_KEY: apiKey,
   }
 }
 
@@ -113,7 +114,7 @@ export async function analyzeCodeWithLLM(
     code_quality_summary: '',
   }
 
-  if (!getEnv().ZENMUX_API_KEY) return { ...defaultResult, llm_error: 'no api key' }
+  if (!getEnv().AI_API_KEY) return { ...defaultResult, llm_error: 'no api key' }
 
   const filesToFetch = pickCodeFiles(tree)
   if (filesToFetch.length === 0) {
@@ -151,14 +152,14 @@ ${codeBundle}
   // Retry up to 2 times, mirroring hackathon-analyzer's error handling
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const res = await fetch(`${getEnv().ZENMUX_API_URL}/chat/completions`, {
+      const res = await fetch(`${getEnv().AI_API_URL}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${getEnv().ZENMUX_API_KEY}`,
+          Authorization: `Bearer ${getEnv().AI_API_KEY}`,
         },
         body: JSON.stringify({
-          model: 'minimax/minimax-m2.5',
+          model: 'minimax-m2.5',
           messages: [{ role: 'user', content: prompt }],
           max_tokens: 1000,
           temperature: 0.1,

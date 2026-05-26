@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUserWithRole } from '@/lib/session'
-import { getZenmuxApiKey, getZenmuxVertexApiBase } from '@/lib/zenmux'
 
 const MAX_GENERATIONS_PER_EVENT = 3
-const MODEL = process.env.ZENMUX_IMAGE_MODEL || 'openai/gpt-image-2'
-const IMAGE_SIZE = process.env.ZENMUX_IMAGE_SIZE || '1536x864'
-const IMAGE_QUALITY = process.env.ZENMUX_IMAGE_QUALITY || 'high'
+const POE_API_BASE = (process.env.POE_API_URL || 'https://api.poe.com/v1').replace(/\/+$/, '')
+const MODEL = process.env.POE_IMAGE_MODEL || 'gpt-image-2'
+const IMAGE_SIZE = process.env.POE_IMAGE_SIZE || '1536x864'
 
-export const maxDuration = 120
+// Poe image bots can take ~100s; allow headroom for generation + download + upload.
+export const maxDuration = 240
 
 export async function POST(
   req: NextRequest,
@@ -66,40 +66,29 @@ export async function POST(
     .filter(Boolean)
     .join('\n')
 
-  const apiKey = getZenmuxApiKey()
+  const apiKey = process.env.POE_API_KEY || ''
   if (!apiKey) {
     return NextResponse.json({ error: 'AI not configured' }, { status: 500 })
   }
 
-  // GPT Image 2 is exposed by ZenMux through the Vertex-compatible predict API.
-  // Direct handle verified before implementation: openai/gpt-image-2.
-  const vertexBase = getZenmuxVertexApiBase()
-  const [publisher, modelName] = MODEL.split('/')
-  if (!publisher || !modelName) {
-    return NextResponse.json({ error: 'invalid_image_model', message: `Invalid image model: ${MODEL}` }, { status: 500 })
-  }
-  const url = `${vertexBase}/v1/publishers/${publisher}/models/${modelName}:predict`
-
-  const res = await fetch(url, {
+  // Poe OpenAI-compatible API: image bots return the result as a markdown image
+  // link (and a raw URL) in the assistant message content. stream:false per Poe.
+  const res = await fetch(`${POE_API_BASE}/chat/completions`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      instances: [{ prompt: promptText }],
-      parameters: {
-        sampleCount: 1,
-        outputOptions: { mimeType: 'image/png' },
-      },
-      imageSize: IMAGE_SIZE,
-      quality: IMAGE_QUALITY,
+      model: MODEL,
+      stream: false,
+      messages: [{ role: 'user', content: promptText }],
     }),
   })
 
   if (!res.ok) {
     const errText = await res.text()
-    console.error('[generate-banner] zenmux image error', res.status, errText.slice(0, 500))
+    console.error('[generate-banner] poe image error', res.status, errText.slice(0, 500))
     return NextResponse.json(
       { error: 'image_generation_failed', message: `AI 生成失败 (${res.status})`, detail: errText.slice(0, 200) },
       { status: 502 }
@@ -107,25 +96,27 @@ export async function POST(
   }
 
   const json = await res.json()
-  type Prediction = {
-    bytesBase64Encoded?: string
-    mimeType?: string
-    image?: { imageBytes?: string; mimeType?: string }
-  }
-  const predictions: Prediction[] = json?.predictions ?? json?.generatedImages ?? []
-  const first = predictions[0]
-  const b64 = first?.bytesBase64Encoded || first?.image?.imageBytes
-  const mime = first?.mimeType || first?.image?.mimeType || 'image/png'
-
-  if (!b64) {
-    console.error('[generate-banner] no image in response', JSON.stringify(json).slice(0, 500))
+  const content: string = json?.choices?.[0]?.message?.content ?? ''
+  const imageUrl =
+    content.match(/!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/)?.[1] ||
+    content.match(/https?:\/\/\S+/)?.[0] ||
+    ''
+  if (!imageUrl) {
+    console.error('[generate-banner] no image url in response', content.slice(0, 500))
     return NextResponse.json({ error: 'no_image_returned' }, { status: 502 })
   }
+
+  // Download the generated image so we host it on our own storage.
+  const imgRes = await fetch(imageUrl)
+  if (!imgRes.ok) {
+    return NextResponse.json({ error: 'image_fetch_failed', message: `下载生成图失败 (${imgRes.status})` }, { status: 502 })
+  }
+  const mime = imgRes.headers.get('content-type') || 'image/png'
+  const buffer = Buffer.from(await imgRes.arrayBuffer())
 
   // Upload to Supabase storage
   const ext = mime.includes('jpeg') ? 'jpg' : mime.includes('webp') ? 'webp' : 'png'
   const filename = `ai-generated/${eventId}-${Date.now()}.${ext}`
-  const buffer = Buffer.from(b64, 'base64')
 
   const { error: upErr } = await db.storage
     .from('event-banners')

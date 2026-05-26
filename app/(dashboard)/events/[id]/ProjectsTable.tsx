@@ -49,7 +49,7 @@ type Project = {
 }
 
 const MODEL_LABEL: Record<string, string> = {
-  minimax: 'MiniMax', claude: 'Claude', gemini: 'Gemini', gpt4o: 'GPT-4o', deepseek: 'DeepSeek', kimi: 'Kimi', glm: 'GLM',
+  minimax: 'MiniMax', claude: 'Claude', gemini: 'Gemini', gpt4o: 'GPT-5.5', deepseek: 'DeepSeek', kimi: 'Kimi', glm: 'GLM',
 }
 const MODEL_COLOR: Record<string, string> = {
   minimax: '#3b82f6', claude: '#f97316', gemini: '#22c55e', gpt4o: '#a855f7', deepseek: '#06b6d4', kimi: '#ec4899', glm: '#6366f1',

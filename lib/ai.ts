@@ -1,15 +1,18 @@
-import { getTemperatureForModel, getZenmuxApiKey, getZenmuxChatApiBase } from './zenmux'
+import { getChatConfigForModelKey, getTemperatureForModel } from './zenmux'
 
 console.log('[ai.ts] module loaded OK')
 
 const MODEL_MAP: Record<string, string> = {
+  // zenmux pay-as-you-go (OpenRouter-style ids)
   claude: 'anthropic/claude-sonnet-4.6',
-  minimax: 'minimax/minimax-m2.5',
   gemini: 'google/gemini-2.5-flash',
-  gpt4o: 'openai/gpt-4o',
   deepseek: 'deepseek/deepseek-v3.2',
-  kimi: 'moonshotai/kimi-k2.5',
-  glm: 'z-ai/glm-5',
+  // Tencent LKEAP (unprefixed ids)
+  minimax: 'minimax-m2.5',
+  kimi: 'kimi-k2.5',
+  glm: 'glm-5',
+  // gpt router
+  gpt4o: 'gpt-5.5',
 }
 
 interface ScoreProject {
@@ -104,13 +107,11 @@ export async function scoreProject(
   codeAnalysis?: { is_real_code?: boolean; business_match_score?: number; code_quality_summary?: string } | null
 ): Promise<ScoreResult> {
   console.log('[scoreProject] start', modelKey, project.name)
-  const apiUrl = getZenmuxChatApiBase()
-  const apiKey = getZenmuxApiKey()
-
-  if (!apiKey) throw new Error('ZENMUX_PAY2GO_API_KEY not set')
-
   const modelId = MODEL_MAP[modelKey]
   if (!modelId) throw new Error(`Unknown model: ${modelKey}`)
+
+  const { apiUrl, apiKey, provider } = getChatConfigForModelKey(modelKey)
+  if (!apiKey) throw new Error(`${provider.toUpperCase()} model API key not set`)
 
   const dimensionsList = dimensions
     .map((d) => {
