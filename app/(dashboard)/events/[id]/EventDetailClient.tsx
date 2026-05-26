@@ -104,6 +104,24 @@ function formatDeadline(iso: string, locale?: string): string {
   return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+type ProjectAnalysisProgress = {
+  overall: 'pending' | 'running' | 'completed' | 'error' | 'partial'
+  ai: {
+    status: 'pending' | 'running' | 'completed' | 'error' | 'partial'
+    completed: number
+    total: number
+  }
+  sonar: {
+    required: boolean
+    status: 'pending' | 'running' | 'completed' | 'error' | 'skipped'
+  }
+  queue: {
+    status: string | null
+    error: string | null
+    sonar_enabled: boolean
+  }
+}
+
 type Project = {
   id: string
   name: string
@@ -114,6 +132,7 @@ type Project = {
   tags: string[] | null
   status: string
   analysis_status: string | null
+  analysis_progress?: ProjectAnalysisProgress
   track_ids?: string[]
   extra_fields: Record<string, string> | null
 }
@@ -600,7 +619,7 @@ export default function EventDetailClient() {
   const creditCost =
     projects.length * event.models.length + (event.web3_enabled ? projects.length * 0.5 : 0) + (editSonar ? projects.length * 2 : 0)
   const isPanelMode = event.mode === 'panel_review'
-  const canPublishResult = projects.length > 0 && projects.every(p => p.analysis_status === 'completed')
+  const canPublishResult = projects.length > 0 && projects.every(p => p.analysis_progress?.overall === 'completed')
 
   const stepsDone = [
     true,

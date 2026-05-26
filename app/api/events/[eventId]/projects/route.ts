@@ -7,6 +7,101 @@ import { getChatConfigForModelKey } from '@/lib/zenmux'
 
 const MAX_DESCRIPTION = 1000
 
+type ProjectAnalysisProgress = {
+  overall: 'pending' | 'running' | 'completed' | 'error' | 'partial'
+  ai: {
+    status: 'pending' | 'running' | 'completed' | 'error' | 'partial'
+    completed: number
+    total: number
+  }
+  sonar: {
+    required: boolean
+    status: 'pending' | 'running' | 'completed' | 'error' | 'skipped'
+  }
+  queue: {
+    status: string | null
+    error: string | null
+    sonar_enabled: boolean
+  }
+}
+
+type ProjectForProgress = {
+  id: string
+  analysis_status: string | null
+  sonar_analysis?: unknown | null
+}
+
+type ScoreRow = { project_id: string; model: string | null }
+type QueueRow = { project_id: string; status: string | null; error: string | null; sonar_enabled: boolean | null }
+
+function buildAnalysisProgress(
+  projects: ProjectForProgress[],
+  event: { models: unknown; sonar_enabled?: boolean | null },
+  scoreRows: ScoreRow[],
+  queueRows: QueueRow[]
+): Record<string, ProjectAnalysisProgress> {
+  const models = Array.isArray(event.models) ? event.models.filter((m): m is string => typeof m === 'string') : []
+  const requiredModelCount = models.length
+  const completedByProject = new Map<string, Set<string>>()
+  for (const row of scoreRows) {
+    if (!row.model) continue
+    const set = completedByProject.get(row.project_id) ?? new Set<string>()
+    set.add(row.model)
+    completedByProject.set(row.project_id, set)
+  }
+
+  const latestQueueByProject = new Map<string, QueueRow>()
+  for (const row of queueRows) {
+    if (!latestQueueByProject.has(row.project_id)) latestQueueByProject.set(row.project_id, row)
+  }
+
+  const progress: Record<string, ProjectAnalysisProgress> = {}
+  for (const project of projects) {
+    const queue = latestQueueByProject.get(project.id)
+    const queueStatus = queue?.status ?? null
+    const queueError = queue?.error ?? null
+    const aiCompleted = completedByProject.get(project.id)?.size ?? 0
+    const sonarRequired = Boolean(event.sonar_enabled || queue?.sonar_enabled)
+
+    let aiStatus: ProjectAnalysisProgress['ai']['status'] = 'pending'
+    if (requiredModelCount === 0) aiStatus = 'completed'
+    else if (aiCompleted >= requiredModelCount) aiStatus = 'completed'
+    else if (queueStatus === 'error' || project.analysis_status === 'error') aiStatus = aiCompleted > 0 ? 'partial' : 'error'
+    else if (queueStatus === 'running' || project.analysis_status === 'running') aiStatus = 'running'
+    else if (aiCompleted > 0) aiStatus = 'partial'
+
+    let sonarStatus: ProjectAnalysisProgress['sonar']['status'] = 'skipped'
+    if (sonarRequired) {
+      if (project.sonar_analysis) sonarStatus = 'completed'
+      else if (queueStatus === 'error' || project.analysis_status === 'error') sonarStatus = 'error'
+      else if (queueStatus === 'running' || project.analysis_status === 'running') sonarStatus = 'running'
+      else sonarStatus = 'pending'
+    }
+
+    const complete = aiStatus === 'completed' && (!sonarRequired || sonarStatus === 'completed')
+    const failed = aiStatus === 'error' || sonarStatus === 'error' || queueStatus === 'error'
+    const running = aiStatus === 'running' || sonarStatus === 'running' || queueStatus === 'running'
+    const partial = aiStatus === 'partial' || (sonarRequired && aiStatus === 'completed' && sonarStatus !== 'completed')
+    const overall: ProjectAnalysisProgress['overall'] = complete
+      ? 'completed'
+      : failed
+      ? 'error'
+      : running
+      ? 'running'
+      : partial
+      ? 'partial'
+      : 'pending'
+
+    progress[project.id] = {
+      overall,
+      ai: { status: aiStatus, completed: aiCompleted, total: requiredModelCount },
+      sonar: { required: sonarRequired, status: sonarStatus },
+      queue: { status: queueStatus, error: queueError, sonar_enabled: Boolean(queue?.sonar_enabled) },
+    }
+  }
+  return progress
+}
+
 // demo_url is optional; bulk-imported sheets often put non-URL text here
 // ("coming soon", "N/A", a note). Keep a valid normalized URL, otherwise drop
 // it so one bad optional cell doesn't fail the whole import.
@@ -100,7 +195,35 @@ export async function GET(
     .eq('event_id', eventId)
     .order('created_at', { ascending: false })
 
-  return NextResponse.json(projects ?? [])
+  if (!projects?.length) return NextResponse.json(projects ?? [])
+
+  const { data: eventConfig } = await db
+    .from('events')
+    .select('models, sonar_enabled')
+    .eq('id', eventId)
+    .single()
+
+  const projectIds = projects.map(p => p.id)
+  const [{ data: reviewerScores }, { data: legacyScores }, { data: queueRows }] = await Promise.all([
+    db.from('reviewer_scores').select('project_id, model').in('project_id', projectIds).in('status', ['done', 'ai_done']),
+    db.from('scores').select('project_id, model').in('project_id', projectIds).eq('status', 'done'),
+    db.from('analysis_queue')
+      .select('project_id, status, error, sonar_enabled')
+      .eq('event_id', eventId)
+      .order('created_at', { ascending: false }),
+  ])
+
+  const progress = buildAnalysisProgress(
+    projects as ProjectForProgress[],
+    eventConfig ?? { models: [], sonar_enabled: false },
+    ([...(reviewerScores ?? []), ...(legacyScores ?? [])] as ScoreRow[]),
+    (queueRows ?? []) as QueueRow[]
+  )
+
+  return NextResponse.json(projects.map(project => ({
+    ...project,
+    analysis_progress: progress[project.id],
+  })))
 }
 
 // POST /api/events/[id]/projects - import projects into an event

@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
-import { getSessionUser } from '@/lib/session'
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
-  const session = await getSessionUser()
-  // Also allow no-auth for polling (status is not sensitive), but verify event exists
+  // Status polling is allowed without auth because it only exposes aggregate progress.
+  // Event existence is still verified below.
 
   const { eventId } = await params
   const admin = createServiceClient()
@@ -15,7 +14,7 @@ export async function GET(
   // Get event status and models
   const { data: event } = await admin
     .from('events')
-    .select('models, status, current_reviewing')
+    .select('models, status')
     .eq('id', eventId)
     .single()
 
@@ -30,15 +29,22 @@ export async function GET(
     .eq('event_id', eventId)
 
   const projectIds = (projectRows ?? []).map((p: { id: string }) => p.id)
-  // Use queued job count for total (reflects actual enqueue params, not just event.models)
-  const { count: queuedCount } = await admin.from('analysis_queue')
-    .select('*', { count: 'exact', head: true })
-    .in('project_id', projectIds.length > 0 ? projectIds : ['__none__'])
-  // Fallback: projects × event.models if no queue
+  // Prefer queue-based progress for VPS worker flow.
+  const { data: queueRows, count: queuedCount } = await admin.from('analysis_queue')
+    .select('status', { count: 'exact' })
+    .eq('event_id', eventId)
   const total = queuedCount && queuedCount > 0 ? queuedCount : projectIds.length * event.models.length
+  const queueStats = (queueRows ?? []).reduce((acc, row: { status: string | null }) => {
+    const key = row.status ?? 'unknown'
+    acc[key] = (acc[key] ?? 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+  const queueCompleted = queueStats.done ?? 0
+  const queueFailed = queueStats.error ?? 0
+  const hasQueueProgress = total > 0 && Object.keys(queueStats).length > 0
   const safeIds = projectIds.length > 0 ? projectIds : ['__none__']
 
-  // Count completed unique (project, model) pairs across both tables
+  // Legacy fallback: count completed unique (project, model) pairs across both tables
   // reviewer_scores takes priority; supplement with scores for pairs not in reviewer_scores
   const [
     { data: reviewerDone },
@@ -61,10 +67,11 @@ export async function GET(
   for (const s of legacyDone ?? []) {
     seenPairs.add(`${s.project_id}:${s.model}`)
   }
-  const completed = seenPairs.size
-  const failed = (legacyFailed ?? 0) + (reviewerFailed ?? 0)
+  const completed = hasQueueProgress ? queueCompleted : seenPairs.size
+  const failed = hasQueueProgress ? queueFailed : (legacyFailed ?? 0) + (reviewerFailed ?? 0)
   const progress = total > 0 ? Math.round((completed / total) * 100) : 0
-  const done = event.status === 'done'
+  const hasActiveQueueJobs = (queueStats.pending ?? 0) > 0 || (queueStats.running ?? 0) > 0
+  const done = hasQueueProgress ? !hasActiveQueueJobs : event.status === 'done'
 
   // Get latest score for "currently reviewing" display
   const { data: latestScore } = await admin
@@ -75,8 +82,7 @@ export async function GET(
     .limit(1)
     .single()
 
-  const currentProject = (event as { current_reviewing?: string }).current_reviewing
-    ?? (latestScore as { projects?: { name?: string } } | null)?.projects?.name
+  const currentProject = (latestScore as { projects?: { name?: string } } | null)?.projects?.name
     ?? null
   const currentModel = latestScore?.model ?? null
 

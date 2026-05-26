@@ -189,6 +189,19 @@ export async function POST(
   })
 }
 
+type BatchProjectStatus = {
+  id: string
+  name: string
+  analysis_status: string | null
+  sonar_analysis?: unknown | null
+}
+
+type BatchQueueStatus = {
+  project_id: string
+  status: string | null
+  sonar_enabled: boolean | null
+}
+
 // GET - check pre-analysis status
 export async function GET(
   _request: NextRequest,
@@ -202,15 +215,41 @@ export async function GET(
 
   const { data: projects } = await db
     .from('projects')
-    .select('id, name, analysis_status')
+    .select('id, name, analysis_status, sonar_analysis')
     .eq('event_id', eventId)
 
-  if (!projects) return NextResponse.json({ total: 0, completed: 0, running: 0, pending: 0, ready: false })
+  if (!projects) return NextResponse.json({ total: 0, completed: 0, running: 0, pending: 0, partial: 0, error: 0, ready: false })
+
+  const projectIds = projects.map(p => p.id)
+  const { data: queues } = await db
+    .from('analysis_queue')
+    .select('project_id, status, sonar_enabled')
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: false })
+
+  const queueByProject = new Map<string, BatchQueueStatus>()
+  for (const q of (queues ?? []) as BatchQueueStatus[]) {
+    if (!queueByProject.has(q.project_id)) queueByProject.set(q.project_id, q)
+  }
 
   const total = projects.length
-  const completed = projects.filter(p => p.analysis_status === 'completed').length
-  const running = projects.filter(p => p.analysis_status === 'running').length
-  const pending = projects.filter(p => !p.analysis_status || p.analysis_status === 'pending').length
+  let completed = 0
+  let running = 0
+  let pending = 0
+  let partial = 0
+  let error = 0
 
-  return NextResponse.json({ total, completed, running, pending, ready: completed === total && total > 0 })
+  for (const project of projects as BatchProjectStatus[]) {
+    const queue = queueByProject.get(project.id)
+    const sonarRequired = Boolean(queue?.sonar_enabled)
+    const baseCompleted = project.analysis_status === 'completed'
+    const sonarCompleted = !sonarRequired || Boolean(project.sonar_analysis)
+    if (baseCompleted && sonarCompleted) completed++
+    else if (queue?.status === 'error' || project.analysis_status === 'error') error++
+    else if (queue?.status === 'running' || project.analysis_status === 'running') running++
+    else if (baseCompleted && !sonarCompleted) partial++
+    else pending++
+  }
+
+  return NextResponse.json({ total, completed, running, pending, partial, error, ready: completed === total && total > 0 })
 }

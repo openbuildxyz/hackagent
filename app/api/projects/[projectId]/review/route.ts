@@ -157,9 +157,10 @@ export async function POST(
   // Allow internal server-to-server calls with x-internal-user-id + x-worker-secret headers
   const internalUserId = req.headers.get('x-internal-user-id')
   const workerSecret = req.headers.get('x-worker-secret')
-  const expectedSecret = process.env.WORKER_SECRET
-  if (!expectedSecret) return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
-  const isWorkerCall = internalUserId === 'worker' && workerSecret === expectedSecret
+  const expectedSecrets = [process.env.WORKER_SECRET, process.env.INTERNAL_API_SECRET]
+    .filter((value): value is string => Boolean(value))
+  if (expectedSecrets.length === 0) return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
+  const isWorkerCall = internalUserId === 'worker' && workerSecret !== null && expectedSecrets.includes(workerSecret)
   const effectiveUserId = session?.userId ?? (isWorkerCall ? 'worker' : null)
   if (!effectiveUserId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

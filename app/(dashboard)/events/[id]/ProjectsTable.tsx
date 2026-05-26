@@ -30,6 +30,24 @@ type Track = {
   prize?: string
 }
 
+type AnalysisProgress = {
+  overall: 'pending' | 'running' | 'completed' | 'error' | 'partial'
+  ai: {
+    status: 'pending' | 'running' | 'completed' | 'error' | 'partial'
+    completed: number
+    total: number
+  }
+  sonar: {
+    required: boolean
+    status: 'pending' | 'running' | 'completed' | 'error' | 'skipped'
+  }
+  queue: {
+    status: string | null
+    error: string | null
+    sonar_enabled: boolean
+  }
+}
+
 type Project = {
   id: string
   name: string
@@ -40,6 +58,7 @@ type Project = {
   tags: string[] | null
   status: string
   analysis_status: string | null
+  analysis_progress?: AnalysisProgress
   track_ids?: string[]
   extra_fields: Record<string, string> | null
   description?: string | null
@@ -59,9 +78,34 @@ const STATUS_CLS: Record<string, string> = {
   pending:   'text-yellow-600 bg-yellow-50',
   running:   'text-blue-600 bg-blue-50',
   completed: 'text-green-700 bg-green-50',
+  partial:   'text-amber-700 bg-amber-50',
   error:     'text-red-500 bg-red-50',
 }
 
+const PROGRESS_LABEL: Record<string, string> = {
+  pending: '待分析',
+  running: '分析中',
+  completed: '完整完成',
+  partial: '部分完成',
+  error: '分析异常',
+  skipped: '未启用',
+}
+
+function progressLabel(status: string) {
+  return PROGRESS_LABEL[status] ?? status
+}
+
+function progressTitle(project: Project) {
+  const p = project.analysis_progress
+  if (!p) return `旧状态：${project.analysis_status ?? 'pending'}`
+  const parts = [
+    `AI：${progressLabel(p.ai.status)} (${p.ai.completed}/${p.ai.total})`,
+    `Sonar：${p.sonar.required ? progressLabel(p.sonar.status) : '未启用'}`,
+    p.queue.status ? `队列：${progressLabel(p.queue.status)}` : null,
+    p.queue.error ? `错误：${p.queue.error}` : null,
+  ].filter(Boolean)
+  return parts.join('\n')
+}
 function scoreColor(v: number) {
   if (v >= 8) return '#22c55e'
   if (v >= 6) return '#3b82f6'
@@ -135,7 +179,7 @@ export default function ProjectsTable({
   const fl = fieldLabels  // alias
   const t = useT()
   const isDone = eventStatus === 'done'
-  const statusLabel = (s: string) => t(('table.analysisStatus.' + s) as Parameters<typeof t>[0]) || s
+  const statusLabel = (s: string) => progressLabel(s) || t(('table.analysisStatus.' + s) as Parameters<typeof t>[0]) || s
   const [projects, setProjects] = useState(initialProjects)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
@@ -513,9 +557,10 @@ export default function ProjectsTable({
           </TableHeader>
           <TableBody>
             {sortedProjects.map((project, index) => {
-              const pStatusKey = project.analysis_status ?? 'pending'
-              const pStatus = { label: statusLabel(pStatusKey), cls: STATUS_CLS[pStatusKey] ?? STATUS_CLS.pending }
-              const score = getComputedScore(project, modelFilter === 'avg' ? undefined : modelFilter)              // Get per-model scores for mini bars
+              const effectiveStatus = project.analysis_progress?.overall ?? project.analysis_status ?? 'pending'
+              const pStatus = { label: progressLabel(effectiveStatus), cls: STATUS_CLS[effectiveStatus] ?? STATUS_CLS.pending }
+              const statusDetail = project.analysis_progress
+              const score = getComputedScore(project, modelFilter === 'avg' ? undefined : modelFilter)
               const reviews = project.analysis_result?.ai_reviews ?? project.reviewer_submissions ?? []
               const validReviews = reviews.filter(r => !r.error && (r.score ?? 0) > 0)
 
@@ -604,7 +649,13 @@ export default function ProjectsTable({
                   )}
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${pStatus.cls}`}>{pStatus.label}</span>
+                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${pStatus.cls}`} title={progressTitle(project)}>{pStatus.label}</span>
+                      {statusDetail && (
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap" title={progressTitle(project)}>
+                          AI {statusDetail.ai.completed}/{statusDetail.ai.total}
+                          {statusDetail.sonar.required ? ` · Sonar ${progressLabel(statusDetail.sonar.status)}` : ''}
+                        </span>
+                      )}
                       {isOwner && (
                         <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-foreground"
                           onClick={() => openEdit(project)}>

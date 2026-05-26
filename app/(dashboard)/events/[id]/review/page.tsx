@@ -259,9 +259,8 @@ export default function ReviewPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : '评审失败，请重试')
       setReviewing(false)
-      toast.error(err instanceof Error ? err.message : '评审失败，请重试')
-    } finally {
       if (pollRef.current) clearInterval(pollRef.current)
+      toast.error(err instanceof Error ? err.message : '评审失败，请重试')
     }
   }
 
