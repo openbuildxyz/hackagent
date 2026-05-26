@@ -5,7 +5,7 @@
 
 const MAX_NAME = 100
 const MAX_URL = 2048
-const MAX_DESCRIPTION = 500
+const MAX_DESCRIPTION = 1000
 const MAX_DEMO_URL = 2048
 const MAX_TEAM_NAME = 100
 

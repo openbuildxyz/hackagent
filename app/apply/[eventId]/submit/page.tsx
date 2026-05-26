@@ -44,7 +44,7 @@ interface MyRegistration {
   } | null
 }
 
-const MAX_DESCRIPTION = 500
+const MAX_DESCRIPTION = 1000
 
 export default function SubmitProjectPage() {
   const t = useT()

@@ -3,6 +3,39 @@ import { createServiceClient } from '@/lib/supabase'
 import { getSessionUserWithRole } from '@/lib/session'
 import { recordAdminAction } from '@/lib/admin-audit'
 import { validateProjectInput } from '@/lib/validate-project'
+import { getChatConfigForModelKey } from '@/lib/zenmux'
+
+const MAX_DESCRIPTION = 1000
+
+// Condense an over-length description to <= MAX_DESCRIPTION chars via AI,
+// preserving key technical/product details. Falls back to a hard truncate if
+// the AI call fails or is misconfigured so bulk import never breaks on this.
+async function summarizeDescription(text: string): Promise<string> {
+  const { apiUrl, apiKey } = getChatConfigForModelKey('minimax')
+  if (!apiKey) return text.slice(0, MAX_DESCRIPTION)
+  try {
+    const res = await fetch(`${apiUrl}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'minimax-m2.5',
+        temperature: 0.2,
+        max_tokens: 2000,
+        messages: [{
+          role: 'user',
+          content: `Summarize the following hackathon project description to at most ${MAX_DESCRIPTION} characters, in the same language as the input, preserving key technical and product details. Output only the summary text, no preamble.\n\n${text}`,
+        }],
+      }),
+      signal: AbortSignal.timeout(30000),
+    })
+    if (!res.ok) return text.slice(0, MAX_DESCRIPTION)
+    const data = await res.json()
+    const summary = String(data?.choices?.[0]?.message?.content ?? '').trim()
+    return summary ? summary.slice(0, MAX_DESCRIPTION) : text.slice(0, MAX_DESCRIPTION)
+  } catch {
+    return text.slice(0, MAX_DESCRIPTION)
+  }
+}
 
 function cleanTags(raw: unknown): string[] {
   if (!raw) return []
@@ -180,8 +213,12 @@ export async function POST(
   for (let i = 0; i < projects.length; i++) {
     const p = projects[i] as ProjectInput
     // Bulk imports pull descriptions from external sources that often exceed the
-    // 500-char submission limit; clip instead of failing the whole batch.
-    const description = typeof p.description === 'string' ? p.description.trim().slice(0, 500) : p.description
+    // limit; AI-summarize over-length ones instead of failing the whole batch.
+    let description = p.description
+    if (typeof description === 'string') {
+      const trimmed = description.trim()
+      description = trimmed.length > MAX_DESCRIPTION ? await summarizeDescription(trimmed) : trimmed
+    }
     const v = validateProjectInput({
       name: p.name,
       github_url: p.github_url,

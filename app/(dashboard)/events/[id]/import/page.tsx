@@ -341,7 +341,7 @@ export default function ImportPage() {
     if (!manualName.trim()) { toast.error(t('import.manual.nameRequired')); return }
     if (!manualGithub.trim()) { toast.error(t('import.manual.githubRequired')); return }
     if (!manualDesc.trim()) { toast.error(t('import.manual.descRequired')); return }
-    if (manualDesc.length > 500) { toast.error(t('import.manual.descTooLong')); return }
+    if (manualDesc.length > 1000) { toast.error(t('import.manual.descTooLong')); return }
 
     setManualProjects(prev => [
       ...prev,
