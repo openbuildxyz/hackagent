@@ -179,10 +179,13 @@ export async function POST(
 
   for (let i = 0; i < projects.length; i++) {
     const p = projects[i] as ProjectInput
+    // Bulk imports pull descriptions from external sources that often exceed the
+    // 500-char submission limit; clip instead of failing the whole batch.
+    const description = typeof p.description === 'string' ? p.description.trim().slice(0, 500) : p.description
     const v = validateProjectInput({
       name: p.name,
       github_url: p.github_url,
-      description: p.description,
+      description,
       demo_url: p.demo_url,
       team_name: p.team_name,
     })
