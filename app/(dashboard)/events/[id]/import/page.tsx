@@ -442,7 +442,13 @@ export default function ImportPage() {
         body: JSON.stringify({ projects }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || t('import.saveFailed'))
+      if (!res.ok) {
+        const base = data.error || t('import.saveFailed')
+        const detail = Array.isArray(data.details) && data.details.length > 0
+          ? `${base}：${data.details.slice(0, 3).join('；')}${data.details.length > 3 ? ` …(+${data.details.length - 3})` : ''}`
+          : base
+        throw new Error(detail)
+      }
       const count: number = data.inserted ?? projects.length
       if ((data.skipped ?? 0) > 0) {
         toast.warning(t('import.importedWithSkipped').replace('{n}', String(count)).replace('{skipped}', String(data.skipped)))

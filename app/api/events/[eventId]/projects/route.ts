@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
-import { getSessionUser, getSessionUserWithRole } from '@/lib/session'
+import { getSessionUserWithRole } from '@/lib/session'
 import { recordAdminAction } from '@/lib/admin-audit'
 import { validateProjectInput } from '@/lib/validate-project'
 
@@ -61,7 +61,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
-  const session = await getSessionUser()
+  const session = await getSessionUserWithRole()
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -130,16 +130,27 @@ export async function POST(
     return NextResponse.json({ project })
   }
 
-  // Admin bulk import flow — requires event ownership
-  const { data: event } = await db
-    .from('events')
-    .select('id')
-    .eq('id', eventId)
-    .eq('user_id', session.userId)
-    .single()
-
-  if (!event) {
-    return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+  // Admin bulk import flow — requires event ownership (OPE-25: admin bypass)
+  if (!session.isAdmin) {
+    const { data: event } = await db
+      .from('events')
+      .select('id')
+      .eq('id', eventId)
+      .eq('user_id', session.userId)
+      .single()
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+    }
+  } else {
+    const { data: event } = await db
+      .from('events')
+      .select('id')
+      .eq('id', eventId)
+      .is('deleted_at', null)
+      .maybeSingle()
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+    }
   }
 
   const { projects } = body as { projects: unknown[] }

@@ -28,6 +28,15 @@ function isValidHttpUrl(url: string): boolean {
   }
 }
 
+// CSV/spreadsheet exports often drop the scheme (e.g. "github.com/foo"); assume
+// https so those rows validate instead of failing import. Dangerous or
+// already-schemed values are left untouched.
+function normalizeUrl(url: string): string {
+  const trimmed = url.trim()
+  if (!trimmed || isDangerousUrl(trimmed) || /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)) return trimmed
+  return `https://${trimmed}`
+}
+
 export interface ValidationResult {
   ok: boolean
   errors: Record<string, string>
@@ -62,7 +71,7 @@ export function validateProjectInput(input: {
   if (typeof input.github_url !== 'string' || !input.github_url.trim()) {
     errors.github_url = 'github_url is required'
   } else {
-    const url = input.github_url.trim()
+    const url = normalizeUrl(input.github_url)
     if (isDangerousUrl(url)) errors.github_url = 'github_url must be a valid HTTP(S) URL'
     else if (!isValidHttpUrl(url)) errors.github_url = 'github_url must be a valid HTTP(S) URL'
     else if (url.length > MAX_URL) errors.github_url = `github_url must be ≤${MAX_URL} chars`
@@ -81,7 +90,7 @@ export function validateProjectInput(input: {
     if (typeof input.demo_url !== 'string') {
       errors.demo_url = 'demo_url must be a string'
     } else {
-      const url = input.demo_url.trim()
+      const url = normalizeUrl(input.demo_url)
       if (url && isDangerousUrl(url)) errors.demo_url = 'demo_url must be a valid HTTP(S) URL'
       else if (url && !isValidHttpUrl(url)) errors.demo_url = 'demo_url must be a valid HTTP(S) URL'
       else if (url.length > MAX_DEMO_URL) errors.demo_url = `demo_url must be ≤${MAX_DEMO_URL} chars`
@@ -101,9 +110,9 @@ export function validateProjectInput(input: {
   const ok = Object.keys(errors).length === 0
   const sanitized = ok ? {
     name: stripHtml((input.name as string).trim()),
-    github_url: (input.github_url as string).trim(),
+    github_url: normalizeUrl(input.github_url as string),
     description: (input.description as string).trim(),
-    demo_url: typeof input.demo_url === 'string' && input.demo_url.trim() ? input.demo_url.trim() : null,
+    demo_url: typeof input.demo_url === 'string' && input.demo_url.trim() ? normalizeUrl(input.demo_url) : null,
     team_name: typeof input.team_name === 'string' && input.team_name.trim() ? stripHtml(input.team_name.trim()) : null,
   } : { name: '', github_url: '', description: '', demo_url: null, team_name: null }
 
