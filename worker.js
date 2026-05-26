@@ -119,8 +119,10 @@ async function processJob(job) {
       body: JSON.stringify({
         models: job.models?.length ? job.models : undefined,
         sonarEnabled: job.sonar_enabled,
+        mode: job.run_mode,
+        module: job.run_module,
       }),
-      signal: AbortSignal.timeout(280_000),
+      signal: AbortSignal.timeout(job.run_module === 'sonar' ? 420_000 : 280_000),
     })
 
     if (!res.ok) {
@@ -162,17 +164,20 @@ async function processJob(job) {
       return
     }
 
-    // Write error status back to queue AND project
-    await Promise.all([
+    // Write error status back to queue. For module-only reruns, do not override the project's aggregate AI status.
+    const updates = [
       db.from('analysis_queue').update({
         status: 'error',
         error: err.message,
         completed_at: new Date().toISOString(),
       }).eq('id', job.id),
-      db.from('projects').update({
+    ]
+    if (!(job.run_mode === 'rerun_module' && job.run_module === 'sonar')) {
+      updates.push(db.from('projects').update({
         analysis_status: 'error',
-      }).eq('id', job.project_id),
-    ])
+      }).eq('id', job.project_id))
+    }
+    await Promise.all(updates)
   }
 }
 

@@ -5,6 +5,9 @@ import { scoreProject } from '@/lib/ai'
 import { analyzeWeb3, buildWeb3InsightSummary } from '@/lib/web3insight'
 import { analyzeCodeWithLLM, computeFakeCodeFlags } from '@/lib/code-analysis'
 
+type RunMode = 'fresh' | 'retry_failed' | 'rerun_module' | 'rerun_all'
+type RunModule = 'sonar' | 'web3' | 'models' | 'all'
+
 type SonarConfig = {
   proxyUrl: string
   secret: string
@@ -193,13 +196,26 @@ export async function POST(
   const body = await req.json().catch(() => ({})) as {
     models?: string[]
     sonarEnabled?: boolean
+    mode?: RunMode
+    module?: RunModule
+  }
+  const mode: RunMode = body.mode ?? 'fresh'
+  const runModule: RunModule = body.module ?? (mode === 'rerun_module' ? 'sonar' : 'all')
+  if (!['fresh', 'retry_failed', 'rerun_module', 'rerun_all'].includes(mode)) {
+    return NextResponse.json({ error: 'Invalid mode' }, { status: 400 })
+  }
+  if (!['sonar', 'web3', 'models', 'all'].includes(runModule)) {
+    return NextResponse.json({ error: 'Invalid module' }, { status: 400 })
+  }
+  if (mode === 'rerun_module' && runModule !== 'sonar') {
+    return NextResponse.json({ error: 'Only module=sonar is supported for rerun_module in Phase 1' }, { status: 400 })
   }
   const db = createServiceClient()
 
   // Get project + event dimensions
   const { data: project } = await db
     .from('projects')
-    .select('id, name, github_url, demo_url, description, event_id, extra_fields')
+    .select('id, name, github_url, demo_url, description, event_id, extra_fields, analysis_result, analysis_status')
     .eq('id', projectId)
     .single()
 
@@ -230,9 +246,10 @@ export async function POST(
   const dimensions = (event.dimensions as Array<{ name: string; weight: number; description?: string }>) || []
   const modelsToUse: string[] = body.models ?? (event.models as string[]) ?? ['moonshot', 'glm', 'deepseek']
   const web3Enabled = event.web3_enabled ?? false
+  const isSonarOnlyRerun = mode === 'rerun_module' && runModule === 'sonar'
 
   // Credits check & deduct (skip for worker calls)
-  const costPerReview = modelsToUse.length + (web3Enabled ? 0.5 : 0)
+  const costPerReview = isSonarOnlyRerun ? 0 : modelsToUse.length + (web3Enabled ? 0.5 : 0)
   const creditCost = Math.ceil(costPerReview)
   if (!isWorkerCall) {
     const { data: userRow } = await db.from('users').select('credits').eq('id', effectiveUserId).single()
@@ -248,9 +265,71 @@ export async function POST(
   }
 
   // Mark running
-  await db.from('projects').update({ analysis_status: 'running' }).eq('id', projectId)
+  const startedAt = new Date().toISOString()
+  const initialModules = ((project as { analysis_modules?: Record<string, unknown> }).analysis_modules ?? {})
+  const runningUpdate: Record<string, unknown> = isSonarOnlyRerun ? {} : { analysis_status: 'running' }
+  if (isSonarOnlyRerun) {
+    runningUpdate.analysis_modules = {
+      ...initialModules,
+      sonar: { status: 'running', updated_at: startedAt, error: null },
+    }
+    runningUpdate.analysis_last_run = {
+      mode,
+      module: runModule,
+      models: modelsToUse,
+      triggered_by: effectiveUserId,
+      triggered_at: startedAt,
+    }
+  }
+  await db.from('projects').update(runningUpdate).eq('id', projectId)
 
   try {
+    if (isSonarOnlyRerun) {
+      if (!project.github_url) throw new Error('Project has no GitHub URL for SonarQube analysis')
+
+      const sonarResult = await runSonarAnalysis(project.name, project.github_url)
+      const completedAt = new Date().toISOString()
+      const modules = {
+        ...initialModules,
+        sonar: { status: 'completed', updated_at: completedAt, error: null },
+      }
+      const currentAnalysisResult = (project.analysis_result ?? {}) as Record<string, unknown>
+      const analysisResult = {
+        ...currentAnalysisResult,
+        sonar_analysis: sonarResult,
+        analyzed_at: completedAt,
+      }
+      const logEntry = {
+        ts: completedAt,
+        status: 'completed',
+        mode,
+        module: runModule,
+        sonar: true,
+      }
+
+      const { data: cur } = await db.from('projects').select('analysis_log').eq('id', projectId).single()
+      const existingLog = Array.isArray(cur?.analysis_log) ? cur.analysis_log : []
+
+      await db
+        .from('projects')
+        .update({
+          sonar_analysis: sonarResult,
+          analysis_result: analysisResult,
+          analysis_modules: modules,
+          analysis_last_run: {
+            mode,
+            module: runModule,
+            models: modelsToUse,
+            triggered_by: effectiveUserId,
+            triggered_at: completedAt,
+          },
+          analysis_log: [...existingLog, logEntry],
+        })
+        .eq('id', projectId)
+
+      return NextResponse.json({ success: true, result: analysisResult })
+    }
+
     // 1. GitHub analysis + LLM code analysis (parallel)
     let githubResult: Record<string, unknown> | null = null
     let codeAnalysis = null
@@ -404,7 +483,21 @@ export async function POST(
     return NextResponse.json({ success: true, result: analysisResult })
   } catch (err) {
     const errEntry = { ts: new Date().toISOString(), status: 'error', error: String(err) }
-    await db.from('projects').update({ analysis_status: 'error' }).eq('id', projectId)
+    const errorUpdate: Record<string, unknown> = isSonarOnlyRerun ? {} : { analysis_status: 'error' }
+    if (isSonarOnlyRerun) {
+      errorUpdate.analysis_modules = {
+        ...initialModules,
+        sonar: { status: 'error', updated_at: errEntry.ts, error: String(err) },
+      }
+      errorUpdate.analysis_last_run = {
+        mode,
+        module: runModule,
+        models: modelsToUse,
+        triggered_by: effectiveUserId,
+        triggered_at: errEntry.ts,
+      }
+    }
+    await db.from('projects').update(errorUpdate).eq('id', projectId)
     void (async () => {
       try {
         const { data } = await db.from('projects').select('analysis_log').eq('id', projectId).single()
