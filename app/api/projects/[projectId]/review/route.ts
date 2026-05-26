@@ -5,21 +5,46 @@ import { scoreProject } from '@/lib/ai'
 import { analyzeWeb3, buildWeb3InsightSummary } from '@/lib/web3insight'
 import { analyzeCodeWithLLM, computeFakeCodeFlags } from '@/lib/code-analysis'
 
-async function runSonarAnalysis(projectName: string, githubUrl: string): Promise<Record<string, unknown> | null> {
-  const proxyUrl = process.env.SONAR_PROXY_URL
-  const secret = process.env.SONAR_PROXY_SECRET
+type SonarConfig = {
+  proxyUrl: string
+  secret: string
+}
+
+function cleanEnv(value: string | undefined): string {
+  return (value ?? '').trim().replace(/^['"]|['"]$/g, '').replace(/\\n$/g, '').trim()
+}
+
+function getSonarConfig(): SonarConfig | null {
+  const proxyUrl = cleanEnv(process.env.SONAR_PROXY_URL)
+  const secret = cleanEnv(process.env.SONAR_PROXY_SECRET)
   if (!proxyUrl || !secret) return null
+  return { proxyUrl, secret }
+}
+
+function requireSonarConfig(): SonarConfig {
+  const config = getSonarConfig()
+  if (!config) throw new Error('SonarQube is enabled but SONAR_PROXY_URL or SONAR_PROXY_SECRET is missing')
+  return config
+}
+
+async function runSonarAnalysis(projectName: string, githubUrl: string): Promise<Record<string, unknown>> {
+  const { proxyUrl, secret } = requireSonarConfig()
   try {
-    const res = await fetch(`${proxyUrl}/analyze`, {
+    const res = await fetch(`${proxyUrl.replace(/\/$/, '')}/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Secret': secret },
       body: JSON.stringify({ name: projectName, github_url: githubUrl }),
       signal: AbortSignal.timeout(360000), // 6min timeout
     })
-    if (!res.ok) return null
-    return await res.json() as Record<string, unknown>
-  } catch {
-    return null
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '')
+      throw new Error(`SonarQube proxy returned HTTP ${res.status}${detail ? `: ${detail.slice(0, 500)}` : ''}`)
+    }
+    const result = await res.json() as Record<string, unknown>
+    if (!result || typeof result !== 'object') throw new Error('SonarQube proxy returned an empty result')
+    return result
+  } catch (err) {
+    throw new Error(`SonarQube analysis failed: ${err instanceof Error ? err.message : String(err)}`)
   }
 }
 

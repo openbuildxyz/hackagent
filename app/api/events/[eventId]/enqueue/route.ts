@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUserWithRole } from '@/lib/session'
 
+function hasSonarConfig() {
+  const clean = (value: string | undefined) => (value ?? '').trim().replace(/^['"]|['"]$/g, '').replace(/\\n$/g, '').trim()
+  return Boolean(clean(process.env.SONAR_PROXY_URL) && clean(process.env.SONAR_PROXY_SECRET))
+}
+
 // POST /api/events/[eventId]/enqueue
 // Enqueue all unanalyzed projects into analysis_queue for VPS worker
 export async function POST(
@@ -26,6 +31,10 @@ export async function POST(
   }
 
   const body = await req.json().catch(() => ({})) as { models?: string[]; sonarEnabled?: boolean; force?: boolean }
+
+  if (body.sonarEnabled && !hasSonarConfig()) {
+    return NextResponse.json({ error: 'SonarQube 未配置完成，当前环境不能开启代码质量分析' }, { status: 503 })
+  }
 
   // Get projects to enqueue
   let baseQuery = db.from('projects').select('id').eq('event_id', eventId)

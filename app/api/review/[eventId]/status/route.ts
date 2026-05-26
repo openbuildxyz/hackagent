@@ -14,7 +14,7 @@ export async function GET(
   // Get event status and models
   const { data: event } = await admin
     .from('events')
-    .select('models, status')
+    .select('models, status, sonar_enabled')
     .eq('id', eventId)
     .single()
 
@@ -25,13 +25,13 @@ export async function GET(
   // Get all project IDs for this event first
   const { data: projectRows } = await admin
     .from('projects')
-    .select('id')
+    .select('id, sonar_analysis')
     .eq('event_id', eventId)
 
   const projectIds = (projectRows ?? []).map((p: { id: string }) => p.id)
   // Prefer queue-based progress for VPS worker flow.
   const { data: queueRows, count: queuedCount } = await admin.from('analysis_queue')
-    .select('status', { count: 'exact' })
+    .select('status, sonar_enabled', { count: 'exact' })
     .eq('event_id', eventId)
   const total = queuedCount && queuedCount > 0 ? queuedCount : projectIds.length * event.models.length
   const queueStats = (queueRows ?? []).reduce((acc, row: { status: string | null }) => {
@@ -41,6 +41,12 @@ export async function GET(
   }, {} as Record<string, number>)
   const queueCompleted = queueStats.done ?? 0
   const queueFailed = queueStats.error ?? 0
+  const sonarRequired = Boolean(event.sonar_enabled || queueRows?.some((row: { sonar_enabled?: boolean | null }) => row.sonar_enabled))
+  const sonarCompleted = sonarRequired
+    ? (projectRows ?? []).filter((p: { sonar_analysis?: unknown | null }) => Boolean(p.sonar_analysis)).length
+    : projectIds.length
+  const effectiveQueueCompleted = sonarRequired ? Math.min(queueCompleted, sonarCompleted) : queueCompleted
+  const effectiveQueueFailed = queueFailed + (sonarRequired ? Math.max(0, queueCompleted - sonarCompleted) : 0)
   const hasQueueProgress = total > 0 && Object.keys(queueStats).length > 0
   const safeIds = projectIds.length > 0 ? projectIds : ['__none__']
 
@@ -67,11 +73,11 @@ export async function GET(
   for (const s of legacyDone ?? []) {
     seenPairs.add(`${s.project_id}:${s.model}`)
   }
-  const completed = hasQueueProgress ? queueCompleted : seenPairs.size
-  const failed = hasQueueProgress ? queueFailed : (legacyFailed ?? 0) + (reviewerFailed ?? 0)
+  const completed = hasQueueProgress ? effectiveQueueCompleted : seenPairs.size
+  const failed = hasQueueProgress ? effectiveQueueFailed : (legacyFailed ?? 0) + (reviewerFailed ?? 0)
   const progress = total > 0 ? Math.round((completed / total) * 100) : 0
   const hasActiveQueueJobs = (queueStats.pending ?? 0) > 0 || (queueStats.running ?? 0) > 0
-  const done = hasQueueProgress ? !hasActiveQueueJobs : event.status === 'done'
+  const done = hasQueueProgress ? !hasActiveQueueJobs && completed + failed >= total : event.status === 'done'
 
   // Get latest score for "currently reviewing" display
   const { data: latestScore } = await admin
