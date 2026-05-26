@@ -27,6 +27,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !INTERNAL_API_SECRET) {
 const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 let activeJobs = 0
+let polling = false
 let zenmuxBlockedUntil = null // Date when Zenmux is available again
 
 function isZenmuxQuotaError(msg) {
@@ -74,35 +75,27 @@ async function sendCompletionEmail(eventId) {
 }
 
 async function claimJob() {
-  // Claim one pending job atomically
+  // Claim one pending job. The update response must be checked because
+  // another poll tick / worker may have claimed the selected row first.
   const { data, error } = await db
     .from('analysis_queue')
     .select('*')
     .eq('status', 'pending')
     .order('created_at', { ascending: true })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   if (error || !data) return null
 
-  // Try to claim it (race condition: another worker might grab it)
-  const { error: claimErr } = await db
+  const { data: claimedRows, error: claimErr } = await db
     .from('analysis_queue')
     .update({ status: 'running', worker_id: WORKER_ID, started_at: new Date().toISOString() })
     .eq('id', data.id)
-    .eq('status', 'pending') // only update if still pending
-
-  if (claimErr) return null
-
-  // Re-fetch to confirm we own it
-  const { data: claimed } = await db
-    .from('analysis_queue')
+    .eq('status', 'pending')
     .select('*')
-    .eq('id', data.id)
-    .eq('worker_id', WORKER_ID)
-    .single()
 
-  return claimed || null
+  if (claimErr || !claimedRows?.length) return null
+  return claimedRows[0]
 }
 
 async function processJob(job) {
@@ -182,25 +175,32 @@ async function processJob(job) {
 }
 
 async function poll() {
-  // Zenmux cooldown check
-  if (zenmuxBlockedUntil) {
-    if (Date.now() < zenmuxBlockedUntil.getTime()) {
-      const remaining = Math.ceil((zenmuxBlockedUntil.getTime() - Date.now()) / 60000)
-      if (remaining % 30 === 0) { // log every 30 min to avoid spam
-        console.log(`[${new Date().toISOString()}] ⏳ Zenmux cooldown: ${remaining} min remaining`)
+  if (polling) return
+  polling = true
+  try {
+    // Zenmux cooldown check
+    if (zenmuxBlockedUntil) {
+      if (Date.now() < zenmuxBlockedUntil.getTime()) {
+        const remaining = Math.ceil((zenmuxBlockedUntil.getTime() - Date.now()) / 60000)
+        if (remaining % 30 === 0) { // log every 30 min to avoid spam
+          console.log(`[${new Date().toISOString()}] ⏳ Zenmux cooldown: ${remaining} min remaining`)
+        }
+        return
+      } else {
+        console.log(`[${new Date().toISOString()}] ✅ Zenmux cooldown ended, resuming...`)
+        zenmuxBlockedUntil = null
       }
-      return
-    } else {
-      console.log(`[${new Date().toISOString()}] ✅ Zenmux cooldown ended, resuming...`)
-      zenmuxBlockedUntil = null
     }
-  }
-  if (activeJobs >= CONCURRENCY) return
-  const job = await claimJob()
-  if (!job) return
 
-  activeJobs++
-  processJob(job).finally(() => { activeJobs-- })
+    while (activeJobs < CONCURRENCY) {
+      const job = await claimJob()
+      if (!job) break
+      activeJobs++
+      processJob(job).finally(() => { activeJobs-- })
+    }
+  } finally {
+    polling = false
+  }
 }
 
 console.log(`[${new Date().toISOString()}] HackAgent Analysis Worker starting (${WORKER_ID})`)
