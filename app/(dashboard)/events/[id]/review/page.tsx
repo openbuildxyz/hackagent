@@ -13,6 +13,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
@@ -27,8 +28,14 @@ import {
   Clock,
   Trophy,
   Users,
+  RotateCcw,
+  RefreshCw,
+  ShieldCheck,
 } from 'lucide-react'
 import { MODEL_NAMES, MODEL_COLORS, MODEL_CREDITS } from '@/lib/models'
+
+type ReviewRunMode = 'fresh' | 'retry_failed' | 'rerun_module' | 'rerun_all'
+type ReviewRunModule = 'sonar' | 'all'
 
 type Event = {
   id: string
@@ -94,6 +101,7 @@ export default function ReviewPage() {
   const [failedCount, setFailedCount] = useState(0)
   const [currentProject, setCurrentProject] = useState('')
   const [currentModel, setCurrentModel] = useState('')
+  const [confirmFullRerunOpen, setConfirmFullRerunOpen] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // AI-only: score editing
@@ -229,12 +237,20 @@ export default function ReviewPage() {
     }, 2000)
   }
 
-  const handleStartReview = async () => {
+  const handleStartReview = async (
+    mode: ReviewRunMode = 'fresh',
+    module: ReviewRunModule = 'all',
+  ) => {
     if (!event) return
 
     setReviewing(true)
+    setDone(false)
     setError('')
     setProgress(0)
+    setProgressTotal(0)
+    setProgressCompleted(0)
+    setCurrentProject('')
+    setCurrentModel('')
     startPolling()
 
     try {
@@ -242,13 +258,25 @@ export default function ReviewPage() {
       const res = await fetch(`/api/events/${eventId}/enqueue`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ models: localModels, sonarEnabled: localSonar, force: true }),
+        body: JSON.stringify({
+          models: localModels,
+          sonarEnabled: module === 'sonar' ? true : localSonar,
+          mode,
+          module,
+        }),
       })
 
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || '评审启动失败')
 
-      toast.info(`已提交 ${data.enqueued ?? 0} 个项目到评审队列，正在处理中...`)
+      if ((data.enqueued ?? 0) === 0) {
+        toast.info(data.message || '没有需要入队的项目')
+        setReviewing(false)
+        if (pollRef.current) clearInterval(pollRef.current)
+        return
+      } else {
+        toast.success(`已提交 ${data.enqueued ?? 0} 个项目到评审队列`)
+      }
       setReviewing(true)
       startPolling()
       await fetch(`/api/events/${eventId}`, {
@@ -591,7 +619,7 @@ export default function ReviewPage() {
                         onClick={() => {
                           setDone(false)
                           setError('')
-                          handleStartReview()
+                          handleStartReview('retry_failed')
                         }}
                         disabled={reviewing}
                       >
@@ -617,8 +645,8 @@ export default function ReviewPage() {
             </Card>
           )}
 
-          {/* Start button */}
-          {!reviewing && !done && (
+          {/* Review actions */}
+          {!reviewing && (
             <div className="space-y-3">
               {projectCount === 0 && (
                 <Card className="border-yellow-200 bg-yellow-50">
@@ -640,15 +668,49 @@ export default function ReviewPage() {
                 </Card>
               )}
 
-              <Button
-                className="w-full gap-2"
-                size="lg"
-                onClick={handleStartReview}
-                disabled={projectCount === 0 || !hasEnoughCredits || reviewing}
-              >
-                <Play size={16} />
-                开始 AI 评审
-              </Button>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">评审操作</CardTitle>
+                  <CardDescription>选择本次要入队处理的范围</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-2 sm:grid-cols-2">
+                  <Button
+                    className="w-full gap-2"
+                    onClick={() => handleStartReview('fresh')}
+                    disabled={projectCount === 0 || !hasEnoughCredits || reviewing}
+                  >
+                    <Play size={16} />
+                    开始评审（仅未完成）
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={() => handleStartReview('retry_failed')}
+                    disabled={projectCount === 0 || reviewing}
+                  >
+                    <RotateCcw size={16} />
+                    重试失败项
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={() => handleStartReview('rerun_module', 'sonar')}
+                    disabled={projectCount === 0 || reviewing}
+                  >
+                    <ShieldCheck size={16} />
+                    补跑 SonarQube
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="w-full gap-2"
+                    onClick={() => setConfirmFullRerunOpen(true)}
+                    disabled={projectCount === 0 || !hasEnoughCredits || reviewing}
+                  >
+                    <RefreshCw size={16} />
+                    全量重跑
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
           )}
 
@@ -711,6 +773,35 @@ export default function ReviewPage() {
           )}
         </>
       )}
+
+      <Dialog open={confirmFullRerunOpen} onOpenChange={setConfirmFullRerunOpen}>
+        <DialogContent className="max-w-sm bg-bg text-fg">
+          <DialogHeader>
+            <DialogTitle>确认全量重跑</DialogTitle>
+            <DialogDescription>
+              这会重新入队全部 {projectCount} 个项目并重置已有分析结果，预计最多消耗 {totalCost} 积分。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md border border-orange-200 bg-orange-50 p-3 text-sm text-orange-700">
+            全量重跑会覆盖当前评审进度和已生成的自动分析结果。仅在模型、配置或项目内容需要全部重算时使用。
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmFullRerunOpen(false)} disabled={reviewing}>
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setConfirmFullRerunOpen(false)
+                handleStartReview('rerun_all')
+              }}
+              disabled={projectCount === 0 || !hasEnoughCredits || reviewing}
+            >
+              确认全量重跑
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Score Dialog */}
       <Dialog open={editScoreOpen} onOpenChange={setEditScoreOpen}>
