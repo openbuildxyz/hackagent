@@ -7,6 +7,20 @@ import { getChatConfigForModelKey } from '@/lib/zenmux'
 
 const MAX_DESCRIPTION = 1000
 
+// demo_url is optional; bulk-imported sheets often put non-URL text here
+// ("coming soon", "N/A", a note). Keep a valid normalized URL, otherwise drop
+// it so one bad optional cell doesn't fail the whole import.
+function cleanOptionalUrl(raw: unknown): string | undefined {
+  if (typeof raw !== 'string' || !raw.trim()) return undefined
+  let u = raw.trim()
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(u)) u = `https://${u}`
+  try {
+    const parsed = new URL(u)
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return u
+  } catch { /* fall through */ }
+  return undefined
+}
+
 // Condense an over-length description to <= MAX_DESCRIPTION chars via AI,
 // preserving key technical/product details. Falls back to a hard truncate if
 // the AI call fails or is misconfigured so bulk import never breaks on this.
@@ -223,7 +237,7 @@ export async function POST(
       name: p.name,
       github_url: p.github_url,
       description,
-      demo_url: p.demo_url,
+      demo_url: cleanOptionalUrl(p.demo_url),
       team_name: p.team_name,
     })
     if (!v.ok) {
