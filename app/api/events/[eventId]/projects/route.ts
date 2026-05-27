@@ -90,7 +90,10 @@ function buildAnalysisProgress(
     }
 
     const complete = aiStatus === 'completed' && (!sonarRequired || sonarStatus === 'completed')
-    const failed = aiStatus === 'error' || sonarStatus === 'error'
+    // Sonar is a supplementary code-quality signal. If AI judging is complete,
+    // a Sonar failure should not mark the whole project as "分析异常"; show it as
+    // partial with the Sonar detail instead.
+    const failed = aiStatus === 'error' || (sonarStatus === 'error' && aiStatus !== 'completed')
     const running = aiStatus === 'running' || sonarStatus === 'running'
     const partial = aiStatus === 'partial' || (sonarRequired && aiStatus === 'completed' && sonarStatus !== 'completed')
     const overall: ProjectAnalysisProgress['overall'] = complete
