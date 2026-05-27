@@ -28,12 +28,24 @@ export async function GET(
   // review items after retries / Sonar reruns.
   const { data: projectRows } = await admin
     .from('projects')
-    .select('id, analysis_status')
+    .select('id, analysis_status, analysis_result, sonar_analysis')
     .eq('event_id', eventId)
 
   const projectIds = (projectRows ?? []).map((p: { id: string }) => p.id)
   const projectStatusById = new Map(
     (projectRows ?? []).map((p: { id: string; analysis_status: string | null }) => [p.id, p.analysis_status])
+  )
+  const projectDoneByAi = new Map(
+    (projectRows ?? []).map((p: { id: string; analysis_result?: { ai_reviews?: Array<{ score?: number | null; error?: boolean | null }> | null } | null }) => [
+      p.id,
+      (p.analysis_result?.ai_reviews ?? []).filter(review => !review.error && (review.score ?? 0) > 0).length >= event.models.length,
+    ])
+  )
+  const projectHasSonar = new Map(
+    (projectRows ?? []).map((p: { id: string; analysis_result?: { sonar_analysis?: unknown | null } | null; sonar_analysis?: unknown | null }) => [
+      p.id,
+      Boolean(p.sonar_analysis || p.analysis_result?.sonar_analysis),
+    ])
   )
   // Prefer queue-based progress for VPS worker flow.
   const { data: queueRows } = await admin.from('analysis_queue')
@@ -54,7 +66,10 @@ export async function GET(
     if (projectStatus === 'completed') queueStats.completedProject += 1
     if (queueStatus === 'pending') queueStats.pending += 1
     else if (queueStatus === 'running') queueStats.running += 1
-    else if (queueStatus === 'error') queueStats.error += 1
+    else if (queueStatus === 'error') {
+      if (projectStatus === 'completed' || projectDoneByAi.get(projectId)) queueStats.done += 1
+      else queueStats.error += 1
+    }
     else if (queueStatus === 'done') queueStats.done += 1
   }
   const queueCompleted = queueStats.completedProject || queueStats.done
