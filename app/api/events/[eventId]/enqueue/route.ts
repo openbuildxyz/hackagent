@@ -101,7 +101,8 @@ export async function POST(
 
   if (!selectedProjects.length) return NextResponse.json({ enqueued: 0, message: 'No projects to enqueue' })
 
-  // Remove existing pending jobs for these projects first
+  // Remove previous queue attempts for these projects first. Keeping completed/error
+  // history here makes progress counts and row status drift after reruns.
   const projectIds = selectedProjects.map(p => p.id)
   if (mode === 'rerun_all' && targetProjectIds.length === 0) {
     await db.from('analysis_queue').delete().eq('event_id', eventId)
@@ -111,7 +112,6 @@ export async function POST(
       .delete()
       .eq('event_id', eventId)
       .in('project_id', projectIds)
-      .in('status', ['pending', 'running'])
   }
 
   // Insert new queue entries. Fall back to the legacy schema if Phase 1 migration is not applied yet.

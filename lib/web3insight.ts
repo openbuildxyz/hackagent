@@ -3,7 +3,7 @@
  * 参考 hackathon-analyzer/analyze_developer.py
  */
 
-const WEB3INSIGHT_BASE = 'https://api.web3insight.ai'
+const WEB3INSIGHT_BASE = 'https://api.web3insight.ai/v1'
 const GITHUB_API = 'https://api.github.com'
 function githubHeaders() {
   const h: Record<string, string> = {
@@ -56,7 +56,7 @@ async function fetchWeb3InsightUser(username: string): Promise<Web3InsightResult
   }
 
   try {
-    const res = await fetch(`${WEB3INSIGHT_BASE}/v2/external/github/users/username/${username}`, {
+    const res = await fetch(`${WEB3INSIGHT_BASE}/external/github/users/username/${username}`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(12000),
     })

@@ -22,27 +22,43 @@ export async function GET(
     return NextResponse.json({ error: 'Event not found' }, { status: 404 })
   }
 
-  // Get all project IDs for this event first
+  // Get all project IDs and coarse project status for this event first.
+  // The progress card is project-level, not queue-row-level. analysis_queue keeps
+  // historical rerun rows, so counting all rows makes 50 projects look like 103
+  // review items after retries / Sonar reruns.
   const { data: projectRows } = await admin
     .from('projects')
-    .select('id')
+    .select('id, analysis_status')
     .eq('event_id', eventId)
 
   const projectIds = (projectRows ?? []).map((p: { id: string }) => p.id)
+  const projectStatusById = new Map(
+    (projectRows ?? []).map((p: { id: string; analysis_status: string | null }) => [p.id, p.analysis_status])
+  )
   // Prefer queue-based progress for VPS worker flow.
-  const { data: queueRows, count: queuedCount } = await admin.from('analysis_queue')
-    .select('status', { count: 'exact' })
+  const { data: queueRows } = await admin.from('analysis_queue')
+    .select('project_id, status')
     .eq('event_id', eventId)
-  const queueTotal = queuedCount ?? queueRows?.length ?? 0
+    .order('created_at', { ascending: false })
+  const latestQueueByProject = new Map<string, string | null>()
+  for (const row of queueRows ?? []) {
+    if (!latestQueueByProject.has(row.project_id)) latestQueueByProject.set(row.project_id, row.status ?? null)
+  }
+  const queueTotal = latestQueueByProject.size
   const hasQueueProgress = queueTotal > 0
-  const total = hasQueueProgress ? queueTotal : projectIds.length * event.models.length
-  const queueStats = (queueRows ?? []).reduce((acc, row: { status: string | null }) => {
-    const key = row.status ?? 'unknown'
-    acc[key] = (acc[key] ?? 0) + 1
-    return acc
-  }, {} as Record<string, number>)
-  const queueCompleted = queueStats.done ?? 0
-  const queueFailed = queueStats.error ?? 0
+  const total = hasQueueProgress ? projectIds.length : projectIds.length * event.models.length
+  const queueStats = { pending: 0, running: 0, done: 0, error: 0, completedProject: 0 }
+  for (const projectId of projectIds) {
+    const projectStatus = projectStatusById.get(projectId)
+    const queueStatus = latestQueueByProject.get(projectId)
+    if (projectStatus === 'completed') queueStats.completedProject += 1
+    if (queueStatus === 'pending') queueStats.pending += 1
+    else if (queueStatus === 'running') queueStats.running += 1
+    else if (queueStatus === 'error') queueStats.error += 1
+    else if (queueStatus === 'done') queueStats.done += 1
+  }
+  const queueCompleted = queueStats.completedProject || queueStats.done
+  const queueFailed = queueStats.error
   const safeIds = projectIds.length > 0 ? projectIds : ['__none__']
 
   // Legacy fallback: count completed unique (project, model) pairs across both tables
@@ -71,7 +87,7 @@ export async function GET(
   const completed = hasQueueProgress ? queueCompleted : seenPairs.size
   const failed = hasQueueProgress ? queueFailed : (legacyFailed ?? 0) + (reviewerFailed ?? 0)
   const progress = total > 0 ? Math.round((completed / total) * 100) : 0
-  const active = (queueStats.pending ?? 0) + (queueStats.running ?? 0)
+  const active = queueStats.pending + queueStats.running
   const done = hasQueueProgress ? active === 0 && completed + failed >= total : event.status === 'done'
 
   // Get latest score for "currently reviewing" display
