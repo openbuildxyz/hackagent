@@ -28,6 +28,13 @@ interface Web3InsightResult {
   is_web3_developer: boolean
   repo_count: number
   username: string
+  error?: {
+    provider: 'web3insight'
+    status: number | null
+    code?: string | null
+    message: string
+    retryable?: boolean
+  }
 }
 
 async function fetchWeb3InsightUser(username: string): Promise<Web3InsightResult> {
@@ -36,14 +43,47 @@ async function fetchWeb3InsightUser(username: string): Promise<Web3InsightResult
     total_score: 0, ecosystems: [], top_ecosystem: null,
     is_web3_developer: false, repo_count: 0, username,
   }
-  if (!token) return empty
+  if (!token) {
+    return {
+      ...empty,
+      error: {
+        provider: 'web3insight',
+        status: null,
+        message: 'WEB3INSIGHT_TOKEN missing',
+        retryable: false,
+      },
+    }
+  }
 
   try {
     const res = await fetch(`${WEB3INSIGHT_BASE}/v2/external/github/users/username/${username}`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(12000),
     })
-    if (!res.ok) return empty
+    if (!res.ok) {
+      let code: string | null = null
+      let message = `HTTP ${res.status}`
+      try {
+        const err = await res.json() as Record<string, unknown>
+        code = typeof err.code === 'string' ? err.code : null
+        message = typeof err.message === 'string' ? err.message : message
+      } catch {
+        try {
+          const text = await res.text()
+          if (text) message = text.slice(0, 300)
+        } catch { /* ignore */ }
+      }
+      return {
+        ...empty,
+        error: {
+          provider: 'web3insight',
+          status: res.status,
+          code,
+          message,
+          retryable: res.status >= 500 || res.status === 429,
+        },
+      }
+    }
     const data = await res.json() as Record<string, unknown>
 
     const ecosystemsRaw = (data?.eco_score as Record<string, unknown>)?.ecosystems as Array<Record<string, unknown>> ?? []
@@ -73,8 +113,16 @@ async function fetchWeb3InsightUser(username: string): Promise<Web3InsightResult
       repo_count: ecosystems.reduce((s, e) => s + e.repo_count, 0),
       username,
     }
-  } catch {
-    return empty
+  } catch (err) {
+    return {
+      ...empty,
+      error: {
+        provider: 'web3insight',
+        status: null,
+        message: err instanceof Error ? err.message : String(err),
+        retryable: true,
+      },
+    }
   }
 }
 
@@ -113,6 +161,15 @@ export interface Web3Analysis {
     top_ecosystem: string | null
     is_web3_developer: boolean
     repo_count: number
+    status?: 'ok' | 'partial_error' | 'error'
+    errors?: Array<{
+      provider: 'web3insight'
+      username: string
+      status: number | null
+      code?: string | null
+      message: string
+      retryable?: boolean
+    }>
   }
   contributors: Array<{ username: string; web3_score: number; is_web3_dev: boolean; top_eco: string | null }>
   github_username: string | null
@@ -223,6 +280,16 @@ export async function analyzeWeb3(githubUrl: string, extraText?: string): Promis
     twitterHandle ? fetchTwitterUser(twitterHandle) : Promise.resolve(null),
   ])
   const results = w3Results
+  const web3Errors = results
+    .filter((r) => r.error)
+    .map((r) => ({
+      provider: 'web3insight' as const,
+      username: r.username,
+      status: r.error?.status ?? null,
+      code: r.error?.code ?? null,
+      message: r.error?.message ?? 'Unknown error',
+      retryable: r.error?.retryable,
+    }))
 
   // Aggregate
   const totalScore = results.reduce((s, r) => s + r.total_score, 0)
@@ -236,7 +303,7 @@ export async function analyzeWeb3(githubUrl: string, extraText?: string): Promis
       if (existing) {
         existing.score += eco.score
         existing.repo_count += eco.repo_count
-        existing.top_repos = [...new Set([...existing.top_repos, ...eco.top_repos])].slice(0, 3)
+        existing.top_repos = Array.from(new Set([...existing.top_repos, ...eco.top_repos])).slice(0, 3)
       } else {
         ecoMap.set(eco.name, { ...eco })
       }
@@ -251,6 +318,8 @@ export async function analyzeWeb3(githubUrl: string, extraText?: string): Promis
       top_ecosystem: mergedEcosystems[0]?.name ?? null,
       is_web3_developer: isWeb3Dev,
       repo_count: results.reduce((s, r) => s + r.repo_count, 0),
+      status: web3Errors.length === 0 ? 'ok' : web3Errors.length === results.length ? 'error' : 'partial_error',
+      errors: web3Errors,
     },
     contributors: results.map(r => ({
       username: r.username,

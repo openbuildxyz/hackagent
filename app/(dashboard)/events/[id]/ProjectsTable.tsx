@@ -18,8 +18,8 @@ type AiReview = { model: string; score: number; dimensions?: Record<string, numb
 type SonarMetrics = { bugs?: string|number; vulnerabilities?: string|number; code_smells?: string|number; ncloc?: string|number; complexity?: string|number; duplicated_lines_density?: string|number; reliability_rating?: string|number; security_rating?: string|number; sqale_rating?: string|number }
 type AnalysisResult = {
   ai_reviews?: AiReview[]
-  github_analysis?: { stars?: number; forks?: number; contributors_count?: number; commit_count_30d?: number; fake_code_flags?: string[]; languages?: Record<string, { pct: number }>; has_readme?: boolean; has_tests?: boolean; size_kb?: number }
-  web3_analysis?: { web3insight?: { total_score?: number; top_ecosystem?: string; is_web3_developer?: boolean }; contributors?: Array<{ username: string; web3_score?: number; is_web3_dev?: boolean; top_eco?: string }>; twitter?: { handle?: string; username?: string; followers?: number | null; followers_count?: number | null; is_kol?: boolean } | null }
+  github_analysis?: { stars?: number; forks?: number; contributors_count?: number; commit_count_30d?: number; fake_code_flags?: string[]; languages?: Record<string, { pct: number }>; has_readme?: boolean; has_tests?: boolean; size_kb?: number; contributors?: Array<{ login?: string; username?: string }> }
+  web3_analysis?: { web3insight?: { total_score?: number; top_ecosystem?: string; is_web3_developer?: boolean; status?: 'ok' | 'partial_error' | 'error'; errors?: Array<{ username?: string; status?: number | null; code?: string | null; message?: string }> }; contributors?: Array<{ username: string; web3_score?: number; is_web3_dev?: boolean; top_eco?: string }>; twitter?: { handle?: string; username?: string; followers?: number | null; followers_count?: number | null; is_kol?: boolean } | null; github_username?: string | null }
   sonar_analysis?: { metrics?: SonarMetrics }
 }
 
@@ -702,6 +702,13 @@ export default function ProjectsTable({
                   const ratingColor: Record<string, string> = { A:'#22c55e', B:'#86efac', C:'#facc15', D:'#f97316', E:'#ef4444' }
                   const w3 = ar?.web3_analysis?.web3insight
                   const contribs = ar?.web3_analysis?.contributors ?? []
+                  const ghContribs = gh?.contributors ?? []
+                  const fallbackGithubContributor = ghContribs.find((c) => c.login || c.username)
+                  const githubUser = contribs[0]?.username
+                    ?? fallbackGithubContributor?.login
+                    ?? fallbackGithubContributor?.username
+                    ?? ar?.web3_analysis?.github_username
+                  const web3Errors = w3?.errors ?? []
                   const langs = gh?.languages ? Object.entries(gh.languages).sort((a,b)=>(b[1].pct??0)-(a[1].pct??0)).slice(0,5) : []
                   const flags = gh?.fake_code_flags ?? []
                   const colCount = (isOwner ? 1 : 0) + 2 + (showTeam ? 1 : 0) + 2 + (showTags ? 1 : 0) + visibleExtraKeys.length + (hasScores ? 1 : 0) + 2
@@ -812,11 +819,11 @@ export default function ProjectsTable({
                                 <div className="py-1 text-fg-subtle text-xs">无 GitHub 数据</div>
                               )}
                               {/* GitHub 用户 */}
-                              {contribs[0]?.username && (
+                              {githubUser && (
                                 <div className="flex items-center justify-between py-1">
                                   <span className="text-fg-subtle text-xs">{t('table.githubUser')}</span>
-                                  <a href={`https://github.com/${contribs[0].username}`} target="_blank" rel="noopener noreferrer"
-                                    className="text-fg text-xs font-medium hover:text-blue-600 hover:underline">{contribs[0].username}</a>
+                                  <a href={`https://github.com/${githubUser}`} target="_blank" rel="noopener noreferrer"
+                                    className="text-fg text-xs font-medium hover:text-blue-600 hover:underline">{githubUser}</a>
                                 </div>
                               )}
                               {/* Twitter */}
@@ -839,6 +846,21 @@ export default function ProjectsTable({
                                 </div>
                               )}
                             </div>
+                            {web3Errors.length > 0 && (
+                              <div className="mt-3 rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 dark:border-amber-700/50 dark:bg-amber-950/20">
+                                <div className="flex items-center justify-between gap-3">
+                                  <p className="text-xs font-medium text-amber-800 dark:text-amber-200">Web3Insight API unavailable</p>
+                                  <span className="text-[10px] text-amber-700/80 dark:text-amber-300/80">{w3?.status === 'partial_error' ? 'partial' : 'error'}</span>
+                                </div>
+                                <div className="mt-1 space-y-1">
+                                  {web3Errors.slice(0, 3).map((error) => (
+                                    <p key={`${error.username}-${error.status}-${error.code ?? 'none'}`} className="text-[11px] leading-relaxed text-amber-800/90 dark:text-amber-200/90">
+                                      @{error.username ?? 'unknown'}: {error.status ? `HTTP ${error.status}` : 'request failed'}{error.code ? ` ${error.code}` : ''}{error.message ? ` - ${error.message}` : ''}
+                                    </p>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                             {/* 贡献者列表 */}
                             {contribs.length > 0 && (
                               <div className="mt-3">

@@ -453,6 +453,8 @@ export async function POST(
       status: 'completed',
       github: !!githubResult,
       web3: !!web3Analysis,
+      web3_status: web3Analysis?.web3insight?.status ?? (web3Enabled ? 'not_run' : 'disabled'),
+      web3_errors: web3Analysis?.web3insight?.errors ?? [],
       sonar: !!sonarResult,
       models: aiReviews.map(r => r.model),
     }
