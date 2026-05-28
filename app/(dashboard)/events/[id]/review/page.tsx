@@ -34,8 +34,8 @@ import {
 } from 'lucide-react'
 import { MODEL_NAMES, MODEL_COLORS, MODEL_CREDITS } from '@/lib/models'
 
-type ReviewRunMode = 'fresh' | 'retry_failed' | 'rerun_module' | 'rerun_all'
-type ReviewRunModule = 'sonar' | 'all'
+type ReviewRunMode = 'fresh' | 'retry_failed' | 'rerun_module' | 'rerun_all' | 'backfill_web3'
+type ReviewRunModule = 'sonar' | 'web3' | 'all'
 
 type Event = {
   id: string
@@ -102,6 +102,7 @@ export default function ReviewPage() {
   const [currentProject, setCurrentProject] = useState('')
   const [currentModel, setCurrentModel] = useState('')
   const [confirmFullRerunOpen, setConfirmFullRerunOpen] = useState(false)
+  const [web3BackfillPending, setWeb3BackfillPending] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // AI-only: score editing
@@ -242,6 +243,32 @@ export default function ReviewPage() {
     module: ReviewRunModule = 'all',
   ) => {
     if (!event) return
+
+    if (mode === 'backfill_web3') {
+      setWeb3BackfillPending(true)
+      setError('')
+      try {
+        const res = await fetch(`/api/events/${eventId}/web3-backfill`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Web3Insight 补跑失败')
+        if ((data.updated ?? 0) === 0) {
+          toast.info(data.message || '没有需要补跑的 Web3Insight 数据')
+        } else {
+          toast.success(`已补跑 ${data.updated} 个项目的 Web3Insight 数据`)
+          fetchScores()
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Web3Insight 补跑失败'
+        setError(message)
+        toast.error(message)
+      } finally {
+        setWeb3BackfillPending(false)
+      }
+      return
+    }
 
     setReviewing(true)
     setDone(false)
@@ -695,16 +722,25 @@ export default function ReviewPage() {
                     variant="outline"
                     className="w-full gap-2"
                     onClick={() => handleStartReview('rerun_module', 'sonar')}
-                    disabled={projectCount === 0 || reviewing}
+                    disabled={projectCount === 0 || reviewing || web3BackfillPending}
                   >
                     <ShieldCheck size={16} />
                     补跑 SonarQube
                   </Button>
                   <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={() => handleStartReview('backfill_web3', 'web3')}
+                    disabled={projectCount === 0 || reviewing || web3BackfillPending}
+                  >
+                    {web3BackfillPending ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                    补跑 Web3Insight
+                  </Button>
+                  <Button
                     variant="destructive"
                     className="w-full gap-2"
                     onClick={() => setConfirmFullRerunOpen(true)}
-                    disabled={projectCount === 0 || !hasEnoughCredits || reviewing}
+                    disabled={projectCount === 0 || !hasEnoughCredits || reviewing || web3BackfillPending}
                   >
                     <RefreshCw size={16} />
                     全量重跑
