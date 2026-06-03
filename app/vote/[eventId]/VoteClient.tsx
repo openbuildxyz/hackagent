@@ -97,7 +97,7 @@ function DescriptionModal({ project, onClose }: { project: Project; onClose: () 
             ✕
           </button>
         </div>
-        <div className="overflow-y-auto px-6 py-4 prose prose-sm prose-gray max-w-none">
+        <div className="overflow-y-auto px-6 py-4 prose prose-sm dark:prose-invert prose-a:break-all prose-code:break-all prose-pre:whitespace-pre-wrap prose-pre:break-words max-w-none break-words [overflow-wrap:anywhere]">
           <ReactMarkdown remarkPlugins={[remarkBreaks, remarkGfm]}>
             {project.description ?? ''}
           </ReactMarkdown>
@@ -147,21 +147,21 @@ function ProjectCard({
     <>
       {modalOpen && <DescriptionModal project={project} onClose={() => setModalOpen(false)} />}
     <div
-      className={`bg-bg rounded-xl border-2 transition-all shadow-sm hover:shadow-md flex flex-col ${
+      className={`bg-bg rounded-xl border-2 transition-all shadow-sm hover:shadow-md flex min-w-0 flex-col ${
         voted ? 'border-purple-400' : 'border-token'
       }`}
     >
-      <div className="p-5 flex-1">
-        <div className="mb-3">
-          <h3 className="text-lg font-bold leading-tight">{project.name}</h3>
+      <div className="min-w-0 p-5 flex-1">
+        <div className="mb-3 min-w-0">
+          <h3 className="text-lg font-bold leading-tight break-words">{project.name}</h3>
           {project.team_name && (
-            <p className="text-sm text-fg-muted mt-0.5">{project.team_name}</p>
+            <p className="text-sm text-fg-muted mt-0.5 break-words">{project.team_name}</p>
           )}
         </div>
 
         {desc && (
-          <div className="mb-3">
-            <p className="text-sm text-fg-muted leading-relaxed">{preview}</p>
+          <div className="mb-3 min-w-0">
+            <p className="text-sm text-fg-muted leading-relaxed break-words [overflow-wrap:anywhere]">{preview}</p>
             {desc.length > 100 && (
               <button
                 onClick={() => setModalOpen(true)}
@@ -174,27 +174,28 @@ function ProjectCard({
         )}
 
         {project.tags && project.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-3">
+          <div className="mb-3 flex min-w-0 flex-wrap gap-1.5">
             {project.tags.map((tag) => (
-              <span key={tag} className="text-xs bg-surface-2 text-fg-muted rounded-full px-2 py-0.5">
+              <span key={tag} title={tag} className="max-w-full rounded-full bg-surface-2 px-2 py-0.5 text-xs text-fg-muted break-all [overflow-wrap:anywhere]">
                 {tag}
               </span>
             ))}
           </div>
         )}
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex min-w-0 flex-wrap gap-2">
           {project.demo_url && (
             <a
               href={project.demo_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded px-2.5 py-1 hover:bg-blue-100 transition-colors"
+              title={project.demo_url}
+              className="inline-flex max-w-full min-w-0 items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded px-2.5 py-1 hover:bg-blue-100 transition-colors"
             >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
               </svg>
-              Demo
+              <span className="truncate">Demo</span>
             </a>
           )}
           {project.github_url && (
@@ -202,9 +203,10 @@ function ProjectCard({
               href={project.github_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs bg-surface text-fg-muted border border-token rounded px-2.5 py-1 hover:bg-[var(--color-surface-2)] transition-colors"
+              title={project.github_url}
+              className="inline-flex max-w-full min-w-0 items-center gap-1 text-xs bg-surface text-fg-muted border border-token rounded px-2.5 py-1 hover:bg-[var(--color-surface-2)] transition-colors"
             >
-              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12" />
               </svg>
               GitHub
