@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Plus, Coins, CreditCard, ClipboardList, Users, KeyRound, Bot, Sun, Moon } from 'lucide-react'
+import { LayoutDashboard, Plus, Coins, CreditCard, ClipboardList, Users, KeyRound, Bot, Sun, Moon, Settings, Shield } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import LogoutButton from './LogoutButton'
 import ChangePasswordButton from './ChangePasswordButton'
@@ -81,7 +81,12 @@ export default function SidebarContent({ email, credits, role = ['viewer'] }: { 
           <NavItem href="/my-reviews" active={isActive('/my-reviews')} icon={<ClipboardList size={15} />} label={t('nav.myReviews')} />
         )}
         {role.includes('admin') && (
-          <NavItem href="/admin/users" active={isActive('/admin/users')} icon={<Users size={15} />} label={t('nav.users')} />
+          <>
+            <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-fg-subtle)]">Admin</div>
+            <NavItem href="/admin" active={isActive('/admin', true)} icon={<Shield size={15} />} label="Overview" />
+            <NavItem href="/admin/users" active={isActive('/admin/users')} icon={<Users size={15} />} label={t('nav.users')} />
+            <NavItem href="/admin/model-config" active={isActive('/admin/model-config')} icon={<Settings size={15} />} label="Model config" />
+          </>
         )}
         {(role.includes('admin') || role.includes('organizer')) && (
           <>

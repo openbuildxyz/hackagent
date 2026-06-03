@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { AlertCircle, Search, ShieldCheck, Users } from 'lucide-react'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { toast } from 'sonner'
-import { Users, ChevronDown } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useLocale } from '@/lib/i18n'
 import { formatDateLong } from '@/lib/format-date'
 
@@ -19,156 +21,214 @@ type User = {
 const ALL_ROLES = ['admin', 'organizer', 'reviewer', 'viewer']
 
 const ROLE_COLORS: Record<string, string> = {
-  admin:     'bg-red-100 text-red-700',
-  organizer: 'bg-purple-100 text-purple-700',
-  reviewer:  'bg-blue-100 text-blue-700',
-  viewer:    'bg-surface-2 text-fg-muted',
+  admin: 'border-red-200 bg-red-50 text-red-700',
+  organizer: 'border-violet-200 bg-violet-50 text-violet-700',
+  reviewer: 'border-blue-200 bg-blue-50 text-blue-700',
+  viewer: 'border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-fg-muted)]',
 }
 
 export default function AdminUsersPage() {
   const [locale] = useLocale()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
   const [pendingRole, setPendingRole] = useState<Record<string, string[]>>({})
   const [saving, setSaving] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [roleFilter, setRoleFilter] = useState('all')
 
   useEffect(() => {
-    fetch('/api/admin/users').then(r => r.json()).then(data => {
-      if (Array.isArray(data)) setUsers(data)
-      setLoading(false)
-    })
+    fetch('/api/admin/users')
+      .then(async (res) => {
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Failed to load users')
+        if (Array.isArray(data)) setUsers(data)
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load users'))
+      .finally(() => setLoading(false))
   }, [])
 
-  const filtered = users.filter(u => u.email.toLowerCase().includes(search.toLowerCase()))
+  const roleCounts = useMemo(() => {
+    return users.reduce<Record<string, number>>((acc, user) => {
+      ;(user.role ?? []).forEach((role) => {
+        acc[role] = (acc[role] ?? 0) + 1
+      })
+      return acc
+    }, {})
+  }, [users])
 
-  const startEdit = (u: User) => {
-    setEditing(u.id)
-    setPendingRole(prev => ({ ...prev, [u.id]: [...u.role] }))
+  const filtered = users.filter((user) => {
+    const matchesSearch = user.email.toLowerCase().includes(search.toLowerCase()) || user.id.includes(search)
+    const matchesRole = roleFilter === 'all' || (user.role ?? []).includes(roleFilter)
+    return matchesSearch && matchesRole
+  })
+
+  const startEdit = (user: User) => {
+    setEditing(user.id)
+    setPendingRole((prev) => ({ ...prev, [user.id]: [...(user.role ?? [])] }))
   }
 
   const toggleRole = (userId: string, role: string) => {
-    setPendingRole(prev => {
+    setPendingRole((prev) => {
       const cur = prev[userId] ?? []
       return {
         ...prev,
-        [userId]: cur.includes(role) ? cur.filter(r => r !== role) : [...cur, role],
+        [userId]: cur.includes(role) ? cur.filter((item) => item !== role) : [...cur, role],
       }
     })
   }
 
   const save = async (userId: string) => {
-    setSaving(userId)
     const role = pendingRole[userId] ?? []
-    if (role.length === 0) { toast.error('至少选择一个角色'); setSaving(null); return }
+    if (role.length === 0) {
+      toast.error('Select at least one role')
+      return
+    }
+
+    setSaving(userId)
     const res = await fetch('/api/admin/users', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, role }),
     })
     setSaving(null)
+
     if (res.ok) {
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role } : u))
+      setUsers((prev) => prev.map((user) => user.id === userId ? { ...user, role } : user))
       setEditing(null)
-      toast.success('角色已更新')
+      toast.success('Roles updated')
     } else {
-      toast.error('保存失败')
+      const data = await res.json().catch(() => ({}))
+      toast.error(data.error || 'Failed to save roles')
     }
   }
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+    <div className="py-8 space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <Users size={22} className="text-fg-muted" />
+          <Users size={22} className="text-[var(--color-fg-muted)]" />
           <div>
-            <h1 className="text-2xl font-bold">用户管理</h1>
-            <p className="text-muted-foreground text-sm mt-0.5">管理用户角色和权限</p>
+            <h1 className="text-2xl font-bold text-[var(--color-fg)]">User management</h1>
+            <p className="text-sm text-[var(--color-fg-muted)]">Registered users, role grants, and permission groups.</p>
           </div>
         </div>
-        <span className="text-sm text-fg-subtle">{users.length} 个用户</span>
+        <Badge variant="outline">{users.length} users</Badge>
       </div>
 
-      <div className="mb-4">
-        <input
-          type="text"
-          placeholder="搜索邮箱..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full max-w-sm border border-token rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-border-strong)]"
-        />
+      <div className="grid gap-3 sm:grid-cols-4">
+        {ALL_ROLES.map((role) => (
+          <button
+            key={role}
+            onClick={() => setRoleFilter(roleFilter === role ? 'all' : role)}
+            className={`rounded-lg border px-4 py-3 text-left transition-colors ${
+              roleFilter === role
+                ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)]'
+                : 'border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-surface)]'
+            }`}
+          >
+            <div className="text-xs uppercase tracking-wider text-[var(--color-fg-muted)]">{role}</div>
+            <div className="mt-1 text-xl font-semibold text-[var(--color-fg)]">{roleCounts[role] ?? 0}</div>
+          </button>
+        ))}
       </div>
 
-      <div className="bg-bg rounded-xl border border-token overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-token bg-surface">
-              <th className="text-left px-5 py-3 font-medium text-fg-muted">邮箱</th>
-              <th className="text-left px-5 py-3 font-medium text-fg-muted">角色</th>
-              <th className="text-left px-5 py-3 font-medium text-fg-muted">积分</th>
-              <th className="text-left px-5 py-3 font-medium text-fg-muted">注册时间</th>
-              <th className="text-right px-5 py-3 font-medium text-fg-muted">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={5} className="text-center py-12 text-muted-foreground">加载中...</td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={5} className="text-center py-12 text-muted-foreground">暂无用户</td></tr>
-            ) : filtered.map(user => (
-              <tr key={user.id} className="border-b border-token hover:bg-[var(--color-surface)]/50 transition-colors">
-                <td className="px-5 py-3 font-medium text-fg">{user.email}</td>
-                <td className="px-5 py-3">
-                  {editing === user.id ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {ALL_ROLES.map(r => {
-                        const active = (pendingRole[user.id] ?? []).includes(r)
-                        return (
-                          <button
-                            key={r}
-                            onClick={() => toggleRole(user.id, r)}
-                            className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                              active
-                                ? 'border-[var(--color-fg)] bg-[var(--color-fg)] text-white'
-                                : 'border-token text-fg-muted hover:border-[var(--color-border-strong)]'
-                            }`}
-                          >
-                            {r}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap gap-1">
-                      {(user.role ?? []).map(r => (
-                        <span key={r} className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[r] ?? 'bg-surface-2 text-fg-muted'}`}>
-                          {r}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </td>
-                <td className="px-5 py-3 text-fg-muted">{user.credits}</td>
-                <td className="px-5 py-3 text-fg-subtle">{formatDateLong(user.created_at, locale)}</td>
-                <td className="px-5 py-3 text-right">
-                  {editing === user.id ? (
-                    <div className="flex items-center justify-end gap-2">
-                      <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>取消</Button>
-                      <Button size="sm" onClick={() => save(user.id)} disabled={saving === user.id}>
-                        {saving === user.id ? '保存中...' : '保存'}
+      <div className="flex flex-col gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-fg-subtle)]" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search email or user id"
+            className="pl-9"
+          />
+        </div>
+        <Button variant="outline" size="sm" onClick={() => { setSearch(''); setRoleFilter('all') }}>
+          Clear filters
+        </Button>
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]">
+        {error ? (
+          <div className="flex items-center gap-2 p-6 text-sm text-red-700">
+            <AlertCircle size={16} /> {error}
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Roles</TableHead>
+                <TableHead>Credits</TableHead>
+                <TableHead>Registered</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow><TableCell colSpan={5} className="py-12 text-center text-[var(--color-fg-muted)]">Loading...</TableCell></TableRow>
+              ) : filtered.length === 0 ? (
+                <TableRow><TableCell colSpan={5} className="py-12 text-center text-[var(--color-fg-muted)]">No users match the current filters.</TableCell></TableRow>
+              ) : filtered.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell>
+                    <div className="font-medium text-[var(--color-fg)]">{user.email}</div>
+                    <div className="mt-0.5 font-mono text-xs text-[var(--color-fg-subtle)]">{user.id}</div>
+                  </TableCell>
+                  <TableCell>
+                    {editing === user.id ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {ALL_ROLES.map((role) => {
+                          const active = (pendingRole[user.id] ?? []).includes(role)
+                          return (
+                            <button
+                              key={role}
+                              type="button"
+                              onClick={() => toggleRole(user.id, role)}
+                              className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                                active
+                                  ? 'border-[var(--color-fg)] bg-[var(--color-fg)] text-[var(--color-bg)]'
+                                  : 'border-[var(--color-border)] text-[var(--color-fg-muted)] hover:border-[var(--color-border-strong)]'
+                              }`}
+                            >
+                              {role}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {(user.role ?? []).map((role) => (
+                          <span key={role} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${ROLE_COLORS[role] ?? ROLE_COLORS.viewer}`}>
+                            {role === 'admin' && <ShieldCheck size={11} />}
+                            {role}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="font-mono text-[var(--color-fg-muted)]">{user.credits}</TableCell>
+                  <TableCell className="text-[var(--color-fg-muted)]">{formatDateLong(user.created_at, locale)}</TableCell>
+                  <TableCell className="text-right">
+                    {editing === user.id ? (
+                      <div className="flex items-center justify-end gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
+                        <Button size="sm" onClick={() => save(user.id)} disabled={saving === user.id}>
+                          {saving === user.id ? 'Saving...' : 'Save'}
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => startEdit(user)}>
+                        Edit roles
                       </Button>
-                    </div>
-                  ) : (
-                    <Button size="sm" variant="outline" onClick={() => startEdit(user)}>
-                      修改角色
-                    </Button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </div>
     </div>
   )

@@ -32,6 +32,16 @@ export const MODEL_CREDITS: Record<string, number> = {
   claude: 16,
 }
 
+export const MODEL_IDS: Record<string, string> = {
+  claude: 'anthropic/claude-sonnet-4.6',
+  minimax: 'minimax-m2.5',
+  gemini: 'google/gemini-2.5-flash',
+  gpt4o: 'gpt-5.5',
+  deepseek: 'deepseek/deepseek-v3.2',
+  kimi: 'kimi-k2.5',
+  glm: 'glm-5',
+}
+
 export const ALL_MODEL_KEYS: string[] = [
   'deepseek',
   'minimax',
