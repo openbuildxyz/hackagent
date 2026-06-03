@@ -77,7 +77,7 @@ const MODEL_COLOR: Record<string, string> = {
 const STATUS_CLS: Record<string, string> = {
   pending:   'text-yellow-600 bg-yellow-50 dark:bg-yellow-400/15 dark:text-yellow-300',
   running:   'text-blue-600 bg-blue-50 dark:bg-blue-400/15 dark:text-blue-300',
-  completed: 'text-green-700 bg-green-50 dark:bg-green-400/15 dark:text-green-300',
+  completed: 'text-emerald-800 bg-emerald-100 border-emerald-200 dark:bg-emerald-400/15 dark:text-emerald-300 dark:border-emerald-400/30',
   partial:   'text-amber-700 bg-amber-50 dark:bg-amber-400/15 dark:text-amber-300',
   error:     'text-red-500 bg-red-50 dark:bg-red-400/15 dark:text-red-300',
 }
@@ -570,8 +570,8 @@ export default function ProjectsTable({
                   </button>
                 </TableHead>
               )}
-              <TableHead>{t('table.colStatus')}</TableHead>
-              <TableHead className="w-8"></TableHead>
+              <TableHead className="w-[7.5rem]">{t('table.colStatus')}</TableHead>
+              <TableHead className="w-[4.75rem]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -666,25 +666,24 @@ export default function ProjectsTable({
                       )}
                     </TableCell>
                   )}
-                  <TableCell className="min-w-[190px]">
-                    <div className="flex items-center gap-1.5 whitespace-nowrap">
+                  <TableCell className="w-[7.5rem] max-w-[7.5rem]">
+                    <div className="flex min-w-0 items-center gap-1.5">
                       <span className={`inline-flex shrink-0 items-center rounded border px-1.5 py-0.5 text-xs font-semibold leading-none whitespace-nowrap ${pStatus.cls}`} title={progressTitle(project)}>{pStatus.label}</span>
                       {statusDetail && (
-                        <span className="inline-flex shrink-0 items-center text-[10px] font-medium leading-none text-fg-muted whitespace-nowrap" title={progressTitle(project)}>
-                          AI {statusDetail.ai.completed}/{statusDetail.ai.total}
-                          {statusDetail.sonar.required ? ` · Sonar ${progressLabel(statusDetail.sonar.status)}` : ''}
+                        <span className="min-w-0 truncate text-[10px] font-medium leading-none text-fg-muted" title={progressTitle(project)}>
+                          {statusDetail.sonar.required ? `S ${progressLabel(statusDetail.sonar.status)}` : `AI ${statusDetail.ai.completed}/${statusDetail.ai.total}`}
                         </span>
                       )}
                       {isOwner && (
-                        <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                        <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
                           onClick={() => openEdit(project)}>
                           <Pencil size={12} />
                         </Button>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
+                  <TableCell className="w-[4.75rem]">
+                    <div className="flex items-center justify-end gap-1 whitespace-nowrap">
                       {rowActions && rowActions(project)}
                       <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-foreground"
                         onClick={() => setExpandedId(expandedId === project.id ? null : project.id)}>

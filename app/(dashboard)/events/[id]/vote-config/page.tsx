@@ -128,7 +128,7 @@ export default function VoteConfigPage() {
       </Link>
 
       <div className="flex items-center gap-3 mb-8">
-        <Vote size={24} className="text-purple-600" />
+        <Vote size={24} className="text-[var(--color-accent)]" />
         <h1 className="text-2xl font-bold">投票配置</h1>
       </div>
 
@@ -144,7 +144,7 @@ export default function VoteConfigPage() {
               <button
                 type="button"
                 onClick={() => setConfig((c) => ({ ...c, enabled: !c.enabled }))}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${config.enabled ? 'bg-purple-600' : 'bg-surface-2'}`}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${config.enabled ? 'bg-[var(--color-accent)]' : 'bg-surface-2'}`}
               >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-bg shadow transition-transform ${config.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
@@ -183,7 +183,7 @@ export default function VoteConfigPage() {
                 </div>
                 <div>
                   <p className="text-xs text-fg-subtle mb-1">{t('vote.preview')}</p>
-                  <div className="min-h-[132px] rounded-md border border-token bg-bg px-3 py-2 text-sm text-fg prose prose-sm dark:prose-invert prose-p:text-fg prose-li:text-fg prose-headings:text-fg prose-strong:text-fg prose-a:text-purple-600 dark:prose-a:text-purple-300 max-w-none">
+                  <div className="min-h-[132px] rounded-md border border-token bg-bg px-3 py-2 text-sm text-fg prose prose-sm dark:prose-invert prose-p:text-fg prose-li:text-fg prose-headings:text-fg prose-strong:text-fg prose-a:text-[var(--color-accent)] dark:prose-a:text-[var(--color-accent-hover)] max-w-none">
                     {config.description ? (
                       <ReactMarkdown remarkPlugins={[remarkBreaks, remarkGfm]}>{config.description}</ReactMarkdown>
                     ) : (
@@ -239,7 +239,7 @@ export default function VoteConfigPage() {
                   type="checkbox"
                   checked={config.visible_fields.includes(opt.value)}
                   onChange={() => toggleField(opt.value)}
-                  className="h-4 w-4 rounded border-token-strong text-purple-600 focus:ring-purple-500"
+                  className="h-4 w-4 rounded border-token-strong accent-[var(--color-accent)] focus:ring-[var(--color-accent)]"
                 />
                 <span className="text-sm">{opt.label}</span>
               </label>
@@ -249,7 +249,7 @@ export default function VoteConfigPage() {
                 type="checkbox"
                 checked={config.show_ai_score}
                 onChange={(e) => setConfig((c) => ({ ...c, show_ai_score: e.target.checked }))}
-                className="h-4 w-4 rounded border-token-strong text-purple-600 focus:ring-purple-500"
+                className="h-4 w-4 rounded border-token-strong accent-[var(--color-accent)] focus:ring-[var(--color-accent)]"
               />
               <span className="text-sm">{t('vote.fieldAiScore')}</span>
             </label>
@@ -267,7 +267,7 @@ export default function VoteConfigPage() {
               <button
                 type="button"
                 onClick={() => setConfig((c) => ({ ...c, show_realtime_count: !c.show_realtime_count }))}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${config.show_realtime_count ? 'bg-purple-600' : 'bg-surface-2'}`}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${config.show_realtime_count ? 'bg-[var(--color-accent)]' : 'bg-surface-2'}`}
               >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-bg shadow transition-transform ${config.show_realtime_count ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
@@ -276,27 +276,27 @@ export default function VoteConfigPage() {
         </Card>
 
         {/* Public link */}
-        <Card className="border-purple-200 bg-purple-50 text-purple-950 dark:border-purple-400/30 dark:bg-purple-400/10 dark:text-purple-100">
+        <Card className="border-token bg-surface text-fg shadow-sm dark:border-[var(--color-border-strong)]">
           <CardHeader>
-            <CardTitle className="text-base text-purple-800 dark:text-purple-200">{t('vote.publicLink')}</CardTitle>
+            <CardTitle className="text-base text-fg">{t('vote.publicLink')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center gap-2">
               <Input
                 readOnly
                 value={publicUrl}
-                className="bg-white text-sm font-mono text-purple-950 border-purple-200 dark:bg-bg dark:text-fg dark:border-purple-400/30"
+                className="bg-bg text-sm font-mono text-fg border-token dark:border-[var(--color-border-strong)]"
               />
               <Button
                 variant="outline"
                 size="icon"
                 onClick={copyLink}
-                className="shrink-0 border-purple-200 bg-white text-purple-700 hover:bg-purple-100 hover:text-purple-900 dark:border-purple-400/30 dark:bg-purple-400/10 dark:text-purple-200 dark:hover:bg-purple-400/20"
+                className="shrink-0 border-token bg-bg text-fg-muted hover:bg-surface-2 hover:text-fg dark:border-[var(--color-border-strong)]"
               >
                 {copied ? <Check size={16} className="text-green-600 dark:text-green-300" /> : <Copy size={16} />}
               </Button>
             </div>
-            <p className="text-xs text-purple-700 dark:text-purple-200">
+            <p className="text-xs text-fg-muted">
               {t('vote.publicLinkDesc')}
             </p>
           </CardContent>
@@ -304,7 +304,7 @@ export default function VoteConfigPage() {
 
         {/* Save */}
         <div className="flex gap-3">
-          <Button onClick={save} disabled={saving} className="bg-purple-600 hover:bg-purple-700 text-white">
+          <Button onClick={save} disabled={saving} className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-[var(--color-accent-fg)]">
             {saving ? t('common.saving') : t('vote.save')}
           </Button>
           <Button variant="outline" onClick={() => router.push(`/events/${id}`)}>
