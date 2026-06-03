@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, Search, ShieldCheck, Users } from 'lucide-react'
+import { AlertCircle, Coins, Search, ShieldCheck, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Textarea } from '@/components/ui/textarea'
 import { useLocale } from '@/lib/i18n'
 import { formatDateLong } from '@/lib/format-date'
 
@@ -35,6 +37,10 @@ export default function AdminUsersPage() {
   const [editing, setEditing] = useState<string | null>(null)
   const [pendingRole, setPendingRole] = useState<Record<string, string[]>>({})
   const [saving, setSaving] = useState<string | null>(null)
+  const [creditUser, setCreditUser] = useState<User | null>(null)
+  const [creditAmount, setCreditAmount] = useState('')
+  const [creditReason, setCreditReason] = useState('')
+  const [creditSaving, setCreditSaving] = useState(false)
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
 
@@ -103,6 +109,63 @@ export default function AdminUsersPage() {
       toast.error(data.error || 'Failed to save roles')
     }
   }
+
+  const openCreditDialog = (user: User) => {
+    setCreditUser(user)
+    setCreditAmount('')
+    setCreditReason('')
+  }
+
+  const closeCreditDialog = () => {
+    if (creditSaving) return
+    setCreditUser(null)
+    setCreditAmount('')
+    setCreditReason('')
+  }
+
+  const adjustCredits = async () => {
+    if (!creditUser) return
+
+    const amount = Number(creditAmount)
+    if (!Number.isInteger(amount) || amount === 0) {
+      toast.error('Enter a non-zero whole number of credits')
+      return
+    }
+    if (creditUser.credits + amount < 0) {
+      toast.error('Adjustment would make the balance negative')
+      return
+    }
+
+    setCreditSaving(true)
+    const res = await fetch('/api/admin/users', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: creditUser.id,
+        action: 'credits.adjust',
+        amount,
+        reason: creditReason.trim() || undefined,
+      }),
+    })
+    setCreditSaving(false)
+
+    const data = await res.json().catch(() => ({}))
+    if (res.ok && typeof data.credits === 'number') {
+      setUsers((prev) => prev.map((user) => user.id === creditUser.id ? { ...user, credits: data.credits } : user))
+      setCreditUser(null)
+      setCreditAmount('')
+      setCreditReason('')
+      toast.success(`Credits updated to ${data.credits}`)
+    } else {
+      toast.error(data.error || 'Failed to adjust credits')
+    }
+  }
+
+  const creditPreviewAmount = Number(creditAmount)
+  const creditPreview =
+    creditUser && Number.isInteger(creditPreviewAmount) && creditPreviewAmount !== 0
+      ? creditUser.credits + creditPreviewAmount
+      : null
 
   return (
     <div className="py-8 space-y-6">
@@ -219,9 +282,15 @@ export default function AdminUsersPage() {
                         </Button>
                       </div>
                     ) : (
-                      <Button size="sm" variant="outline" onClick={() => startEdit(user)}>
-                        Edit roles
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button size="sm" variant="outline" onClick={() => openCreditDialog(user)}>
+                          <Coins size={14} />
+                          Credits
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => startEdit(user)}>
+                          Edit roles
+                        </Button>
+                      </div>
                     )}
                   </TableCell>
                 </TableRow>
@@ -230,6 +299,60 @@ export default function AdminUsersPage() {
           </Table>
         )}
       </div>
+
+      <Dialog open={!!creditUser} onOpenChange={(open) => { if (!open) closeCreditDialog() }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adjust credits</DialogTitle>
+            <DialogDescription>
+              {creditUser ? `Current balance for ${creditUser.email}: ${creditUser.credits} credits` : 'Update user credits.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="credit-amount" className="text-sm font-medium text-[var(--color-fg)]">
+                Amount
+              </label>
+              <Input
+                id="credit-amount"
+                value={creditAmount}
+                onChange={(event) => setCreditAmount(event.target.value)}
+                inputMode="numeric"
+                placeholder="Use positive or negative whole numbers"
+                disabled={creditSaving}
+              />
+              <p className={`text-xs ${creditPreview !== null && creditPreview < 0 ? 'text-red-700' : 'text-[var(--color-fg-muted)]'}`}>
+                {creditPreview === null
+                  ? 'Examples: 50 adds credits, -10 subtracts credits.'
+                  : `New balance: ${creditPreview} credits`}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="credit-reason" className="text-sm font-medium text-[var(--color-fg)]">
+                Reason
+              </label>
+              <Textarea
+                id="credit-reason"
+                value={creditReason}
+                onChange={(event) => setCreditReason(event.target.value)}
+                maxLength={500}
+                placeholder="Optional audit note"
+                disabled={creditSaving}
+              />
+              <p className="text-xs text-[var(--color-fg-muted)]">{creditReason.length}/500</p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeCreditDialog} disabled={creditSaving}>Cancel</Button>
+            <Button onClick={adjustCredits} disabled={creditSaving || !creditAmount.trim() || (creditPreview !== null && creditPreview < 0)}>
+              {creditSaving ? 'Saving...' : 'Apply adjustment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
