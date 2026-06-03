@@ -73,7 +73,7 @@ export default function SidebarContent({ email, credits, role = ['viewer'] }: { 
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {(role.includes('admin') || role.includes('organizer')) && (
           <>
-            <NavItem href="/dashboard" active={isActive('/dashboard', true) || pathname === '/events' || pathname.startsWith('/events/')} icon={<LayoutDashboard size={15} />} label={t('nav.myEvents')} />
+            <NavItem href="/dashboard" active={isActive('/dashboard', true) || pathname === '/events' || (pathname.startsWith('/events/') && !pathname.startsWith('/events/new'))} icon={<LayoutDashboard size={15} />} label={t('nav.myEvents')} />
             <NavItem href="/events/new" active={isActive('/events/new')} icon={<Plus size={15} />} label={t('nav.newEvent')} />
           </>
         )}

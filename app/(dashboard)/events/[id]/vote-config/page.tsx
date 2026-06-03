@@ -183,7 +183,7 @@ export default function VoteConfigPage() {
                 </div>
                 <div>
                   <p className="text-xs text-fg-subtle mb-1">{t('vote.preview')}</p>
-                  <div className="min-h-[132px] rounded-md border border-token bg-surface px-3 py-2 text-sm prose prose-sm max-w-none">
+                  <div className="min-h-[132px] rounded-md border border-token bg-bg px-3 py-2 text-sm text-fg prose prose-sm dark:prose-invert prose-p:text-fg prose-li:text-fg prose-headings:text-fg prose-strong:text-fg prose-a:text-purple-600 dark:prose-a:text-purple-300 max-w-none">
                     {config.description ? (
                       <ReactMarkdown remarkPlugins={[remarkBreaks, remarkGfm]}>{config.description}</ReactMarkdown>
                     ) : (
@@ -276,27 +276,27 @@ export default function VoteConfigPage() {
         </Card>
 
         {/* Public link */}
-        <Card className="border-purple-200 bg-purple-50">
+        <Card className="border-purple-200 bg-purple-50 text-purple-950 dark:border-purple-400/30 dark:bg-purple-400/10 dark:text-purple-100">
           <CardHeader>
-            <CardTitle className="text-base text-purple-800">{t('vote.publicLink')}</CardTitle>
+            <CardTitle className="text-base text-purple-800 dark:text-purple-200">{t('vote.publicLink')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center gap-2">
               <Input
                 readOnly
                 value={publicUrl}
-                className="bg-bg text-sm font-mono"
+                className="bg-white text-sm font-mono text-purple-950 border-purple-200 dark:bg-bg dark:text-fg dark:border-purple-400/30"
               />
               <Button
                 variant="outline"
                 size="icon"
                 onClick={copyLink}
-                className="shrink-0"
+                className="shrink-0 border-purple-200 bg-white text-purple-700 hover:bg-purple-100 hover:text-purple-900 dark:border-purple-400/30 dark:bg-purple-400/10 dark:text-purple-200 dark:hover:bg-purple-400/20"
               >
-                {copied ? <Check size={16} className="text-green-600" /> : <Copy size={16} />}
+                {copied ? <Check size={16} className="text-green-600 dark:text-green-300" /> : <Copy size={16} />}
               </Button>
             </div>
-            <p className="text-xs text-purple-700">
+            <p className="text-xs text-purple-700 dark:text-purple-200">
               {t('vote.publicLinkDesc')}
             </p>
           </CardContent>

@@ -666,11 +666,11 @@ export default function ProjectsTable({
                       )}
                     </TableCell>
                   )}
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${pStatus.cls}`} title={progressTitle(project)}>{pStatus.label}</span>
+                  <TableCell className="min-w-[190px]">
+                    <div className="flex items-center gap-1.5 whitespace-nowrap">
+                      <span className={`inline-flex shrink-0 items-center rounded border px-1.5 py-0.5 text-xs font-semibold leading-none whitespace-nowrap ${pStatus.cls}`} title={progressTitle(project)}>{pStatus.label}</span>
                       {statusDetail && (
-                        <span className="text-[10px] text-muted-foreground whitespace-nowrap" title={progressTitle(project)}>
+                        <span className="inline-flex shrink-0 items-center text-[10px] font-medium leading-none text-fg-muted whitespace-nowrap" title={progressTitle(project)}>
                           AI {statusDetail.ai.completed}/{statusDetail.ai.total}
                           {statusDetail.sonar.required ? ` · Sonar ${progressLabel(statusDetail.sonar.status)}` : ''}
                         </span>
