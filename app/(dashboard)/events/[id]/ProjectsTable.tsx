@@ -83,7 +83,7 @@ const STATUS_CLS: Record<string, string> = {
 }
 
 const FILTER_PILL_BASE = 'px-2.5 py-1 text-xs rounded-full border transition-colors'
-const FILTER_PILL_ACTIVE = 'bg-neutral-950 text-white border-neutral-950 shadow-sm hover:bg-neutral-800 dark:bg-white dark:text-neutral-950 dark:border-white dark:hover:bg-neutral-200'
+const FILTER_PILL_ACTIVE = '!bg-[var(--color-fg)] !text-[var(--color-bg)] !border-[var(--color-fg)] shadow-sm hover:!bg-[var(--color-fg)]'
 const FILTER_PILL_IDLE = 'border-token text-fg-muted bg-bg hover:text-[var(--color-fg)] hover:border-[var(--color-border-strong)] dark:border-[var(--color-border-strong)]'
 const SELECT_TRIGGER_CLS = 'bg-bg border-token text-fg hover:border-[var(--color-border-strong)] dark:border-[var(--color-border-strong)]'
 
