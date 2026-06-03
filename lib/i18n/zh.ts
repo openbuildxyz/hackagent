@@ -744,6 +744,7 @@ const zh = {
   'vote.totalLimit': '共 {n} 票',
   'vote.allTracks': '全部',
   'vote.noProjects': '暂无项目',
+  'vote.searchPlaceholder': '搜索项目名称…',
   'vote.completeBanner': '🎉 投票完成！感谢参与',
   'vote.backHome': '返回主页',
 

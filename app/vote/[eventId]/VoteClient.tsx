@@ -6,7 +6,7 @@ import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
-import { Sun, Moon } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useT, useLocale } from '@/lib/i18n'
 import { formatDateLong } from '@/lib/format-date'
 import PublicNavbar from '@/components/PublicNavbar'
@@ -254,7 +254,6 @@ export default function VoteClient({
   initialProjects,
   initialVoteCounts,
   initialMyVotes,
-  tracks = [],
 }: Props) {
   const t = useT()
   const [locale] = useLocale()
@@ -262,7 +261,7 @@ export default function VoteClient({
   const [voteCounts, setVoteCounts] = useState<Record<string, number>>(initialVoteCounts)
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [done, setDone] = useState(false)
-  const [selectedTrack, setSelectedTrack] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const [dark, setDark] = useState(false)
 
   useEffect(() => {
@@ -324,9 +323,10 @@ export default function VoteClient({
   }, [eventId])
 
   const progressPct = voteLimit > 0 ? (myVotes.length / voteLimit) * 100 : 0
-  const filteredProjects = selectedTrack === 'all'
-    ? initialProjects
-    : initialProjects.filter(p => p.track_ids?.includes(selectedTrack))
+  const normalizedSearch = searchQuery.trim().toLowerCase()
+  const filteredProjects = normalizedSearch
+    ? initialProjects.filter((p) => p.name.toLowerCase().includes(normalizedSearch))
+    : initialProjects
 
   const endedDateLabel = initialEvent.ends_at
     ? formatDateLong(initialEvent.ends_at, locale)
@@ -354,11 +354,15 @@ export default function VoteClient({
             </div>
           )}
           {initialEvent.banner_url && (
-            <EventCover src={initialEvent.banner_url} className="rounded-xl mb-4" />
+            <EventCover
+              src={initialEvent.banner_url}
+              className="rounded-xl mb-4 aspect-[21/9] max-h-[360px] md:max-h-[300px]"
+              imageClassName="object-cover object-top"
+            />
           )}
-          <h1 className="text-3xl font-bold text-fg">{initialEvent.title}</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-fg">{initialEvent.title}</h1>
           {initialEvent.vote_config_description && (
-            <div className="text-fg-muted mt-3 max-w-2xl prose prose-sm prose-gray leading-relaxed">
+            <div className="mt-3 max-w-3xl rounded-xl border border-token bg-surface-2/80 px-4 py-3 text-fg shadow-sm dark:bg-white/[0.06] dark:text-zinc-100 dark:border-white/15 prose prose-sm dark:prose-invert prose-p:text-current prose-li:text-current prose-strong:text-current prose-ul:my-1 prose-li:my-0.5 leading-relaxed">
               <ReactMarkdown remarkPlugins={[remarkBreaks, remarkGfm]}>{initialEvent.vote_config_description}</ReactMarkdown>
             </div>
           )}
@@ -392,27 +396,21 @@ export default function VoteClient({
 
       {/* Projects grid */}
       <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Track filter */}
-        {tracks.length > 1 && (
-          <div className="flex items-center gap-2 flex-wrap mb-6">
-            <button
-              onClick={() => setSelectedTrack('all')}
-              className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${selectedTrack === 'all' ? 'bg-[var(--color-fg)] text-white border-[var(--color-fg)]' : 'border-token text-fg-muted hover:border-[var(--color-border-strong)]'}`}
-            >
-              {t('vote.allTracks')}
-            </button>
-            {tracks.map(tr => (
-              <button
-                key={tr.id}
-                onClick={() => setSelectedTrack(tr.id)}
-                className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${selectedTrack === tr.id ? 'bg-purple-600 text-white border-purple-600' : 'border-token text-fg-muted hover:border-[var(--color-border-strong)]'}`}
-              >
-                {tr.name}
-                {tr.prize && <span className="ml-1.5 text-xs opacity-70">{tr.prize}</span>}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="relative mb-6 max-w-md">
+          <Search
+            size={16}
+            className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-fg-subtle"
+            aria-hidden
+          />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t('vote.searchPlaceholder')}
+            aria-label={t('vote.searchPlaceholder')}
+            className="w-full rounded-full border border-token bg-bg py-2.5 pl-10 pr-4 text-sm text-fg outline-none transition-colors placeholder:text-fg-subtle focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+          />
+        </div>
         {filteredProjects.length === 0 ? (
           <div className="text-center py-16 text-fg-subtle">{t('vote.noProjects')}</div>
         ) : (

@@ -744,6 +744,7 @@ const en = {
   'vote.totalLimit': 'of {n}',
   'vote.allTracks': 'All',
   'vote.noProjects': 'No projects yet',
+  'vote.searchPlaceholder': 'Search projects…',
   'vote.completeBanner': '🎉 Voting complete! Thanks for participating',
   'vote.backHome': 'Home',
 
