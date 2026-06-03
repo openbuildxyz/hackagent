@@ -6,7 +6,7 @@ import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
-import { Search } from 'lucide-react'
+import { ExternalLink, Github, Search } from 'lucide-react'
 import { useT, useLocale } from '@/lib/i18n'
 import { formatDateLong } from '@/lib/format-date'
 import PublicNavbar from '@/components/PublicNavbar'
@@ -189,12 +189,11 @@ function ProjectCard({
               target="_blank"
               rel="noopener noreferrer"
               title={project.demo_url}
-              className="inline-flex max-w-full min-w-0 items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded px-2.5 py-1 hover:bg-blue-100 transition-colors"
+              aria-label={`Open demo for ${project.name}`}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-200 dark:hover:bg-blue-400/20"
             >
-              <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-              <span className="truncate">Demo</span>
+              <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>Demo</span>
             </a>
           )}
           {project.github_url && (
@@ -203,12 +202,11 @@ function ProjectCard({
               target="_blank"
               rel="noopener noreferrer"
               title={project.github_url}
-              className="inline-flex max-w-full min-w-0 items-center gap-1 text-xs bg-surface text-fg-muted border border-token rounded px-2.5 py-1 hover:bg-[var(--color-surface-2)] transition-colors"
+              aria-label={`Open GitHub repository for ${project.name}`}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-token bg-surface px-3 text-xs font-semibold text-fg-muted transition-colors hover:bg-[var(--color-surface-2)] hover:text-fg"
             >
-              <svg className="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12" />
-              </svg>
-              GitHub
+              <Github className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>GitHub</span>
             </a>
           )}
         </div>
