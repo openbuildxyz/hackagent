@@ -10,7 +10,6 @@ import { Search } from 'lucide-react'
 import { useT, useLocale } from '@/lib/i18n'
 import { formatDateLong } from '@/lib/format-date'
 import PublicNavbar from '@/components/PublicNavbar'
-import EventCover from '@/components/EventCover'
 
 type Track = {
   id: string
@@ -343,12 +342,12 @@ export default function VoteClient({
         <div className="max-w-6xl mx-auto px-4 py-8">
           {isEnded && (
             <div
-              className="bg-orange-100 border border-orange-300 text-orange-800 dark:bg-orange-900/20 dark:border-orange-700 dark:text-orange-300 rounded-lg px-4 py-3 mb-4 text-sm font-medium flex items-center gap-2"
+              className="rounded-xl border border-amber-500/45 bg-amber-50 px-4 py-3 mb-4 text-sm font-semibold text-amber-950 shadow-sm ring-1 ring-amber-500/10 dark:bg-amber-950/35 dark:border-amber-400/35 dark:text-amber-100 flex items-center gap-2"
               role="status"
               aria-live="polite"
             >
-              <span aria-hidden>⏰</span>
-              <span>
+              <span aria-hidden className="shrink-0 text-base">⏰</span>
+              <span className="leading-relaxed">
                 {initialEvent.ends_at
                   ? t('vote.closed.bannerWithDate').replace('{date}', endedDateLabel)
                   : t('vote.closed.banner')}
@@ -356,11 +355,14 @@ export default function VoteClient({
             </div>
           )}
           {initialEvent.banner_url && (
-            <EventCover
-              src={initialEvent.banner_url}
-              className="rounded-xl mb-4 aspect-[21/9] max-h-[360px] md:max-h-[300px]"
-              imageClassName="object-cover object-top"
-            />
+            <div className="mb-4 overflow-hidden rounded-xl border border-token bg-black shadow-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={initialEvent.banner_url}
+                alt={initialEvent.title}
+                className="mx-auto block h-auto max-h-none w-full object-contain md:max-h-[520px] md:w-auto md:max-w-full"
+              />
+            </div>
           )}
           <h1 className="text-2xl md:text-3xl font-bold text-fg">{initialEvent.title}</h1>
           {initialEvent.vote_config_description && (
