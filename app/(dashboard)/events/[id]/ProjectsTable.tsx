@@ -77,7 +77,7 @@ const MODEL_COLOR: Record<string, string> = {
 const STATUS_CLS: Record<string, string> = {
   pending:   'text-yellow-600 bg-yellow-50 dark:bg-yellow-400/15 dark:text-yellow-300',
   running:   'text-blue-600 bg-blue-50 dark:bg-blue-400/15 dark:text-blue-300',
-  completed: 'text-emerald-800 bg-emerald-100 border-emerald-200 dark:bg-emerald-400/15 dark:text-emerald-300 dark:border-emerald-400/30',
+  completed: 'text-fg bg-bg border-token shadow-sm dark:bg-surface-2 dark:border-[var(--color-border-strong)]',
   partial:   'text-amber-700 bg-amber-50 dark:bg-amber-400/15 dark:text-amber-300',
   error:     'text-red-500 bg-red-50 dark:bg-red-400/15 dark:text-red-300',
 }
@@ -668,7 +668,10 @@ export default function ProjectsTable({
                   )}
                   <TableCell className="w-[7.5rem] max-w-[7.5rem]">
                     <div className="flex min-w-0 items-center gap-1.5">
-                      <span className={`inline-flex shrink-0 items-center rounded border px-1.5 py-0.5 text-xs font-semibold leading-none whitespace-nowrap ${pStatus.cls}`} title={progressTitle(project)}>{pStatus.label}</span>
+                      <span className={`inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-xs font-semibold leading-none whitespace-nowrap ${pStatus.cls}`} title={progressTitle(project)}>
+                        {effectiveStatus === 'completed' && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" aria-hidden />}
+                        {pStatus.label}
+                      </span>
                       {statusDetail && (
                         <span className="min-w-0 truncate text-[10px] font-medium leading-none text-fg-muted" title={progressTitle(project)}>
                           {statusDetail.sonar.required ? `S ${progressLabel(statusDetail.sonar.status)}` : `AI ${statusDetail.ai.completed}/${statusDetail.ai.total}`}
