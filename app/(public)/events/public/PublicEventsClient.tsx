@@ -176,10 +176,10 @@ function EventCard({ event, t, locale, now }: { event: PublicEvent; t: (k: Trans
   const showCountdown = daysLeft !== null && daysLeft <= 7
 
   return (
-    <article>
+    <article className="h-full">
       <Link
         href={`/events/public/${event.id}`}
-        className="group flex flex-col rounded-xl overflow-hidden transition-all duration-200 no-underline"
+        className="group flex h-full flex-col rounded-xl overflow-hidden transition-all duration-200 no-underline"
         style={{
           backgroundColor: 'var(--color-surface)',
           border: '1px solid var(--color-border)',
@@ -264,7 +264,7 @@ function EventCard({ event, t, locale, now }: { event: PublicEvent; t: (k: Trans
       </EventCover>
       <div className="flex flex-col flex-1 p-5 gap-2.5">
         {/* Title */}
-        <div className="flex items-start gap-2 flex-wrap">
+        <div className="flex min-h-[2.6rem] items-start gap-2 flex-wrap">
           <h2
             className="font-bold text-[15px] leading-snug line-clamp-2 transition-colors group-hover:text-[var(--color-accent)] flex-1 min-w-0"
             style={{ color: 'var(--color-fg)' }}
@@ -309,48 +309,52 @@ function EventCard({ event, t, locale, now }: { event: PublicEvent; t: (k: Trans
         )}
 
         {/* Description — tertiary (HTML stripped for card snippet) */}
-        {(() => {
-          const snippet = descriptionSnippet(event.description)
-          if (!snippet) return null
-          return (
-            <p
-              className="text-[13px] line-clamp-3 leading-relaxed"
-              style={{ color: 'var(--color-fg-muted)' }}
-            >
-              {snippet}
-            </p>
-          )
-        })()}
+        <div className="min-h-[3.95rem]">
+          {(() => {
+            const snippet = descriptionSnippet(event.description)
+            if (!snippet) return null
+            return (
+              <p
+                className="text-[13px] line-clamp-3 leading-relaxed"
+                style={{ color: 'var(--color-fg-muted)' }}
+              >
+                {snippet}
+              </p>
+            )
+          })()}
+        </div>
 
         {/* Tracks — quietest meta, capped at 2 */}
-        {trackCount > 0 && (
-          <div className="flex items-center gap-1.5 flex-wrap pt-1">
-            <Tag size={11} style={{ color: 'var(--color-fg-subtle)' }} className="shrink-0" />
-            {event.tracks!.slice(0, 2).map(track => (
-              <span
-                key={track.id}
-                className="text-[11px] px-2 py-0.5 rounded-md"
-                style={{
-                  backgroundColor: 'var(--color-surface-2)',
-                  color: 'var(--color-fg-muted)',
-                  border: '1px solid var(--color-border)',
-                }}
-              >
-                {track.name}
-              </span>
-            ))}
-            {trackCount > 2 && (
-              <span
-                className="text-[11px] px-1.5"
-                style={{ color: 'var(--color-fg-subtle)' }}
-                title={event.tracks!.slice(2).map(t => t.name).join(', ')}
-                aria-label={`${trackCount - 2} more tracks`}
-              >
-                +{trackCount - 2}
-              </span>
-            )}
-          </div>
-        )}
+        <div className="min-h-[1.625rem]">
+          {trackCount > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap pt-1">
+              <Tag size={11} style={{ color: 'var(--color-fg-subtle)' }} className="shrink-0" />
+              {event.tracks!.slice(0, 2).map(track => (
+                <span
+                  key={track.id}
+                  className="text-[11px] px-2 py-0.5 rounded-md"
+                  style={{
+                    backgroundColor: 'var(--color-surface-2)',
+                    color: 'var(--color-fg-muted)',
+                    border: '1px solid var(--color-border)',
+                  }}
+                >
+                  {track.name}
+                </span>
+              ))}
+              {trackCount > 2 && (
+                <span
+                  className="text-[11px] px-1.5"
+                  style={{ color: 'var(--color-fg-subtle)' }}
+                  title={event.tracks!.slice(2).map(t => t.name).join(', ')}
+                  aria-label={`${trackCount - 2} more tracks`}
+                >
+                  +{trackCount - 2}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* View details CTA removed — entire card is already clickable (F13) */}
       </div>
