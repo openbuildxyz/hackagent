@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/session'
 import { getChatConfigForModelKey } from '@/lib/zenmux'
+import { MODEL_IDS } from '@/lib/models'
 
 interface GeneratedEvent {
   name: string
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'minimax-m2.5',
+      model: MODEL_IDS.minimax,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: prompt.trim() },

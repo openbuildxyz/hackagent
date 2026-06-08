@@ -1,4 +1,5 @@
 import { getChatConfigForModelKey } from './zenmux'
+import { MODEL_IDS } from './models'
 
 /**
  * Code analysis via GitHub API + LLM.
@@ -159,7 +160,7 @@ ${codeBundle}
           Authorization: `Bearer ${getEnv().AI_API_KEY}`,
         },
         body: JSON.stringify({
-          model: 'minimax-m2.5',
+          model: MODEL_IDS.minimax,
           messages: [{ role: 'user', content: prompt }],
           max_tokens: 1000,
           temperature: 0.1,
@@ -172,7 +173,7 @@ ${codeBundle}
       const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> }
       let content = data.choices?.[0]?.message?.content?.trim() ?? ''
 
-      // Strip <think> blocks (MiniMax M2.5 reasoning)
+      // Strip <think> blocks (MiniMax reasoning)
       content = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim()
       // Strip markdown fences
       content = content.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim()

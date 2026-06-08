@@ -146,7 +146,7 @@ export function getAdminModelConfigSnapshot(): AdminModelConfigSnapshot {
       baseUrl: getTencentChatApiBase(),
       env: providerEnv('tencent'),
       status: providerConfigured('tencent') ? 'configured' : 'missing',
-      notes: 'Uses minimax-m2.5 for /api/ai/generate-event.',
+      notes: 'Uses minimax-m2.7 for /api/ai/generate-event.',
     },
     {
       key: 'code-analysis',
@@ -155,7 +155,7 @@ export function getAdminModelConfigSnapshot(): AdminModelConfigSnapshot {
       baseUrl: getTencentChatApiBase(),
       env: [...providerEnv('tencent'), envStatus('GITHUB_TOKEN')],
       status: providerConfigured('tencent') ? 'configured' : 'missing',
-      notes: 'Uses minimax-m2.5 plus GitHub API; GITHUB_TOKEN is optional but improves rate limits.',
+      notes: 'Uses minimax-m2.7 plus GitHub API; GITHUB_TOKEN is optional but improves rate limits.',
     },
     {
       key: 'team-auto-match',
@@ -288,6 +288,18 @@ function missingResult(target: AdminConnectionTestTarget, message: string): Admi
   }
 }
 
+function responsePreview(data: unknown): string {
+  if (!data || typeof data !== 'object') return String(data ?? 'empty response').slice(0, 300)
+  const keys = Object.keys(data as Record<string, unknown>).slice(0, 8)
+  let preview = ''
+  try {
+    preview = JSON.stringify(data)
+  } catch {
+    preview = String(data)
+  }
+  return `keys: ${keys.length ? keys.join(', ') : '(none)'}; body: ${preview.slice(0, 300)}`
+}
+
 async function testChatCompletion(
   target: AdminConnectionTestTarget,
   apiUrl: string,
@@ -325,7 +337,9 @@ async function testChatCompletion(
       ok,
       status: ok ? 'ok' : 'warning',
       httpStatus: res.status,
-      message: ok ? 'Chat completion endpoint responded successfully' : 'Endpoint responded but did not return choices',
+      message: ok
+        ? 'Chat completion endpoint responded successfully'
+        : `Endpoint responded but did not return choices (${responsePreview(data)})`,
     }
   })
 }
@@ -369,7 +383,7 @@ export async function testAdminModelConnection(target: AdminConnectionTestTarget
   switch (target.key) {
     case 'event-generation':
     case 'code-analysis':
-      return testChatCompletion(target, getTencentChatApiBase(), getTencentApiKey(), 'minimax-m2.5')
+      return testChatCompletion(target, getTencentChatApiBase(), getTencentApiKey(), MODEL_IDS.minimax)
     case 'team-auto-match':
       return testChatCompletion(target, getZenmuxChatApiBase(), getZenmuxApiKey(), 'z-ai/glm-4.5-air')
     case 'image-generation':

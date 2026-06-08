@@ -4,6 +4,7 @@ import { getSessionUserWithRole } from '@/lib/session'
 import { recordAdminAction } from '@/lib/admin-audit'
 import { validateProjectInput } from '@/lib/validate-project'
 import { getChatConfigForModelKey } from '@/lib/zenmux'
+import { MODEL_IDS } from '@/lib/models'
 
 const MAX_DESCRIPTION = 1000
 
@@ -141,7 +142,7 @@ async function summarizeDescription(text: string): Promise<string> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: 'minimax-m2.5',
+        model: MODEL_IDS.minimax,
         temperature: 0.2,
         max_tokens: 2000,
         messages: [{

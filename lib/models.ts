@@ -1,7 +1,7 @@
 // Client-safe model constants (no server-side imports)
 export const MODEL_NAMES: Record<string, string> = {
   claude: 'Claude Sonnet 4.6',
-  minimax: 'MiniMax M2.5',
+  minimax: 'MiniMax M2.7',
   gemini: 'Gemini 2.5 Flash',
   gpt4o: 'GPT-5.5',
   deepseek: 'DeepSeek V3.2',
@@ -20,7 +20,7 @@ export const MODEL_COLORS: Record<string, string> = {
 }
 
 // Credit multipliers based on per-review cost (3K input + 500 output tokens):
-// deepseek $0.0011 (1x baseline), minimax $0.0015 (1x), gemini $0.0022 (2x),
+// deepseek $0.0011 (1x baseline), minimax M2.7 (1x), gemini $0.0022 (2x),
 // glm $0.0030 (3x), kimi $0.0033 (3x), gpt4o $0.0125 (12x), claude $0.0165 (16x)
 export const MODEL_CREDITS: Record<string, number> = {
   deepseek: 1,
@@ -34,7 +34,7 @@ export const MODEL_CREDITS: Record<string, number> = {
 
 export const MODEL_IDS: Record<string, string> = {
   claude: 'anthropic/claude-sonnet-4.6',
-  minimax: 'minimax-m2.5',
+  minimax: 'minimax-m2.7',
   gemini: 'google/gemini-2.5-flash',
   gpt4o: 'gpt-5.5',
   deepseek: 'deepseek/deepseek-v3.2',
