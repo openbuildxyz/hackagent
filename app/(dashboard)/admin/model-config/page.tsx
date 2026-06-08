@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { AlertCircle, CheckCircle2, Settings, XCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Loader2, Settings, Wifi, XCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { toast } from 'sonner'
 
 type EnvStatus = {
   name: string
@@ -41,6 +43,15 @@ type ConfigSnapshot = {
   services: ServiceConfig[]
 }
 
+type TestResult = {
+  ok: boolean
+  status: 'ok' | 'warning' | 'error' | 'missing'
+  latencyMs: number
+  message: string
+  httpStatus?: number
+  checkedAt: string
+}
+
 function StatusBadge({ configured }: { configured: boolean }) {
   return configured ? (
     <Badge className="border-green-200 bg-green-50 text-green-700 hover:bg-green-50"><CheckCircle2 size={12} className="mr-1" />Configured</Badge>
@@ -73,6 +84,8 @@ export default function AdminModelConfigPage() {
   const [config, setConfig] = useState<ConfigSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [testing, setTesting] = useState<string | null>(null)
+  const [results, setResults] = useState<Record<string, TestResult>>({})
 
   useEffect(() => {
     fetch('/api/admin/model-config')
@@ -84,6 +97,56 @@ export default function AdminModelConfigPage() {
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load model configuration'))
       .finally(() => setLoading(false))
   }, [])
+
+  async function testConnection(type: 'model' | 'service', key: string) {
+    const id = `${type}:${key}`
+    setTesting(id)
+    try {
+      const res = await fetch('/api/admin/model-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, key }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok && !data.status) throw new Error(data.error || 'Connectivity test failed')
+      setResults((prev) => ({ ...prev, [id]: data }))
+      if (data.ok) toast.success(`${key} connection OK`)
+      else toast.error(data.message || `${key} connection failed`)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Connectivity test failed'
+      setResults((prev) => ({
+        ...prev,
+        [id]: {
+          ok: false,
+          status: 'error',
+          latencyMs: 0,
+          message,
+          checkedAt: new Date().toISOString(),
+        },
+      }))
+      toast.error(message)
+    } finally {
+      setTesting(null)
+    }
+  }
+
+  function TestSummary({ id }: { id: string }) {
+    const result = results[id]
+    if (!result) return null
+    const color =
+      result.status === 'ok'
+        ? 'text-green-700'
+        : result.status === 'warning'
+          ? 'text-amber-700'
+          : 'text-red-700'
+    return (
+      <div className={`mt-2 max-w-xl text-xs ${color}`}>
+        <span className="font-medium">{result.status.toUpperCase()}</span>
+        <span className="text-[var(--color-fg-subtle)]"> · {result.latencyMs}ms{result.httpStatus ? ` · HTTP ${result.httpStatus}` : ''}</span>
+        <div className="mt-0.5 break-words">{result.message}</div>
+      </div>
+    )
+  }
 
   return (
     <div className="py-8 space-y-6">
@@ -135,12 +198,28 @@ export default function AdminModelConfigPage() {
                         <div className="font-medium text-[var(--color-fg)]">{model.displayName}</div>
                         <div className="mt-1 font-mono text-xs text-[var(--color-fg-muted)]">{model.key} · {model.modelId}</div>
                         <div className="mt-1 text-xs text-[var(--color-fg-subtle)]">temperature {model.temperature} · {model.notes}</div>
+                        <TestSummary id={`model:${model.key}`} />
                       </TableCell>
                       <TableCell><Badge variant="outline">{model.provider}</Badge></TableCell>
                       <TableCell className="max-w-56 break-all font-mono text-xs text-[var(--color-fg-muted)]">{model.baseUrl}</TableCell>
                       <TableCell><EnvList env={model.env} /></TableCell>
                       <TableCell className="font-mono">{model.credits}</TableCell>
-                      <TableCell><StatusBadge configured={model.configured} /></TableCell>
+                      <TableCell>
+                        <div className="flex flex-col items-start gap-2">
+                          <StatusBadge configured={model.configured} />
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-8 gap-1.5"
+                            onClick={() => testConnection('model', model.key)}
+                            disabled={testing !== null || !model.configured}
+                          >
+                            {testing === `model:${model.key}` ? <Loader2 size={13} className="animate-spin" /> : <Wifi size={13} />}
+                            Test
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -165,7 +244,19 @@ export default function AdminModelConfigPage() {
                       </div>
                       <div className="mt-2 max-w-3xl break-all font-mono text-xs text-[var(--color-fg-muted)]">{service.baseUrl}</div>
                       <p className="mt-2 text-sm text-[var(--color-fg-muted)]">{service.notes}</p>
+                      <TestSummary id={`service:${service.key}`} />
                     </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1.5"
+                      onClick={() => testConnection('service', service.key)}
+                      disabled={testing !== null || service.status !== 'configured'}
+                    >
+                      {testing === `service:${service.key}` ? <Loader2 size={13} className="animate-spin" /> : <Wifi size={13} />}
+                      Test
+                    </Button>
                   </div>
                   <div className="mt-3"><EnvList env={service.env} /></div>
                 </div>

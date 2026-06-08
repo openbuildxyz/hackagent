@@ -20,6 +20,11 @@ export type EventSummary = {
   created_at: string
   project_count: number
   is_hidden?: boolean
+  participation?: {
+    registration_status: string | null
+    human: boolean
+    agent_count: number
+  }
 }
 
 function getDisplayStatus(e: EventSummary) {
@@ -35,10 +40,13 @@ function getDisplayStatus(e: EventSummary) {
 const STATUS_STYLES: Record<string, { color?: string; variant: 'default' | 'secondary' | 'outline' }> = {
   draft:    { variant: 'secondary' },
   inactive: { variant: 'secondary' },
+  upcoming: { variant: 'outline' },
   recruiting: { variant: 'default', color: 'bg-green-100 text-green-700 border-green-200' },
   hacking:  { variant: 'secondary' },
+  open:     { variant: 'default', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
   judging:  { variant: 'default', color: 'bg-blue-100 text-blue-700 border-blue-200' },
   done:     { variant: 'outline' },
+  cancelled: { variant: 'outline' },
 }
 
 const STATUS_LABEL_KEYS: Record<string, TranslationKey> = {
@@ -48,17 +56,22 @@ const STATUS_LABEL_KEYS: Record<string, TranslationKey> = {
   hacking:  'dashboard.status.hacking',
   judging:  'dashboard.status.judging',
   done:     'dashboard.status.done',
+  upcoming: 'dashboard.status.upcoming',
+  open: 'dashboard.status.open',
+  cancelled: 'dashboard.status.cancelled',
 }
 
 export default function EventsPageClient({ events, canManage }: { events: EventSummary[]; canManage: boolean }) {
   const t = useT()
+  const title = canManage ? t('dashboard.title') : t('dashboard.viewerTitle')
+  const subtitle = canManage ? t('dashboard.subtitle') : t('dashboard.viewerSubtitle')
 
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold">{t('dashboard.title')}</h1>
-          <p className="text-muted-foreground text-sm mt-1">{t('dashboard.subtitle')}</p>
+          <h1 className="text-2xl font-bold">{title}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{subtitle}</p>
         </div>
         {canManage && (
           <Link href="/events/new">
@@ -129,6 +142,26 @@ export default function EventsPageClient({ events, canManage }: { events: EventS
                   </div>
                   {event.track && (
                     <p className="text-xs text-muted-foreground">{event.track}</p>
+                  )}
+                  {!canManage && event.participation && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {event.participation.registration_status && (
+                        <Badge variant="outline" className="text-xs">
+                          {t('dashboard.registrationStatus').replace('{status}', event.participation.registration_status)}
+                        </Badge>
+                      )}
+                      {event.participation.human && (
+                        <Badge variant="secondary" className="text-xs">
+                          {t('dashboard.joinedByMe')}
+                        </Badge>
+                      )}
+                      {event.participation.agent_count > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          {t(event.participation.agent_count === 1 ? 'dashboard.joinedByAgent.one' : 'dashboard.joinedByAgent')
+                            .replace('{n}', String(event.participation.agent_count))}
+                        </Badge>
+                      )}
+                    </div>
                   )}
                 </CardHeader>
                 <CardContent>

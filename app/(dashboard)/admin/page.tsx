@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { AlertCircle, Settings, Shield, Users } from 'lucide-react'
+import { AlertCircle, Settings, Shield, Ticket, Users } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -79,7 +79,7 @@ export default function AdminOverviewPage() {
             </Card>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -94,6 +94,17 @@ export default function AdminOverviewPage() {
                 ))}
               </div>
               <Button asChild className="mt-5" size="sm"><Link href="/admin/users">Open users</Link></Button>
+            </div>
+
+            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="font-semibold text-[var(--color-fg)]">Invite codes</h2>
+                  <p className="mt-1 text-sm text-[var(--color-fg-muted)]">Generate account invite codes manually for new user registration.</p>
+                </div>
+                <Ticket size={18} className="text-[var(--color-fg-muted)]" />
+              </div>
+              <Button asChild className="mt-5" size="sm"><Link href="/admin/invite-codes">Open invite codes</Link></Button>
             </div>
 
             <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-5">
