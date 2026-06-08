@@ -80,11 +80,11 @@ export default function SidebarContent({ email, credits, role = ['viewer'] }: { 
         )}
         {role.includes('admin') && (
           <>
-            <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-fg-subtle)]">Admin</div>
-            <NavItem href="/admin" active={isActive('/admin', true)} icon={<Shield size={15} />} label="Overview" />
+            <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-fg-subtle)]">{t('admin.nav.section')}</div>
+            <NavItem href="/admin" active={isActive('/admin', true)} icon={<Shield size={15} />} label={t('admin.nav.overview')} />
             <NavItem href="/admin/users" active={isActive('/admin/users')} icon={<Users size={15} />} label={t('nav.users')} />
-            <NavItem href="/admin/invite-codes" active={isActive('/admin/invite-codes')} icon={<Ticket size={15} />} label="Invite codes" />
-            <NavItem href="/admin/model-config" active={isActive('/admin/model-config')} icon={<Settings size={15} />} label="Model config" />
+            <NavItem href="/admin/invite-codes" active={isActive('/admin/invite-codes')} icon={<Ticket size={15} />} label={t('admin.nav.inviteCodes')} />
+            <NavItem href="/admin/model-config" active={isActive('/admin/model-config')} icon={<Settings size={15} />} label={t('admin.nav.modelConfig')} />
           </>
         )}
         <NavItem href="/api-keys" active={isActive('/api-keys')} icon={<KeyRound size={15} />} label={t('nav.apiKeys')} />

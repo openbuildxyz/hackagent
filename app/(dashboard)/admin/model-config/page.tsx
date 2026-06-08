@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { AlertCircle, CheckCircle2, Loader2, Settings, Wifi, XCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Loader2, PlayCircle, Settings, Wifi, XCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { toast } from 'sonner'
+import { useT } from '@/lib/i18n'
 
 type EnvStatus = {
   name: string
@@ -52,28 +53,38 @@ type TestResult = {
   checkedAt: string
 }
 
-function StatusBadge({ configured }: { configured: boolean }) {
+function StatusBadge({ configured, labelConfigured, labelMissing }: { configured: boolean; labelConfigured: string; labelMissing: string }) {
   return configured ? (
-    <Badge className="border-green-200 bg-green-50 text-green-700 hover:bg-green-50"><CheckCircle2 size={12} className="mr-1" />Configured</Badge>
+    <Badge className="border-green-200 bg-green-50 text-green-700 hover:bg-green-50"><CheckCircle2 size={12} className="mr-1" />{labelConfigured}</Badge>
   ) : (
-    <Badge className="border-red-200 bg-red-50 text-red-700 hover:bg-red-50"><XCircle size={12} className="mr-1" />Missing</Badge>
+    <Badge className="border-red-200 bg-red-50 text-red-700 hover:bg-red-50"><XCircle size={12} className="mr-1" />{labelMissing}</Badge>
   )
 }
 
-function EnvList({ env }: { env: EnvStatus[] }) {
+function EnvList({
+  env,
+  secretLabel,
+  secretTitle,
+  nonSecretTitle,
+}: {
+  env: EnvStatus[]
+  secretLabel: string
+  secretTitle: string
+  nonSecretTitle: string
+}) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {env.map((item) => (
         <span
           key={`${item.name}-${item.secret}`}
-          title={item.secret ? 'Secret value hidden' : 'Non-secret setting'}
+          title={item.secret ? secretTitle : nonSecretTitle}
           className={`rounded-full border px-2 py-0.5 font-mono text-[11px] ${
             item.configured
               ? 'border-green-200 bg-green-50 text-green-700'
               : 'border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-fg-muted)]'
           }`}
         >
-          {item.name}{item.secret ? ' secret' : ''}
+          {item.name}{item.secret ? ` ${secretLabel}` : ''}
         </span>
       ))}
     </div>
@@ -81,26 +92,56 @@ function EnvList({ env }: { env: EnvStatus[] }) {
 }
 
 export default function AdminModelConfigPage() {
+  const t = useT()
   const [config, setConfig] = useState<ConfigSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [testing, setTesting] = useState<string | null>(null)
+  const [testing, setTesting] = useState<string[]>([])
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null)
   const [results, setResults] = useState<Record<string, TestResult>>({})
+
+  const modelNote = (key: string) => key === 'kimi' ? t('admin.model.noteKimi') : t('admin.model.noteDefault')
+  const serviceName = (key: string, fallback: string) => {
+    const names: Record<string, string> = {
+      'event-generation': t('admin.model.service.eventGeneration'),
+      'code-analysis': t('admin.model.service.codeAnalysis'),
+      'team-auto-match': t('admin.model.service.teamAutoMatch'),
+      'image-generation': t('admin.model.service.imageGeneration'),
+      'github-enrichment': t('admin.model.service.githubEnrichment'),
+      web3insight: t('admin.model.service.web3insight'),
+      sonar: t('admin.model.service.sonar'),
+      'zenmux-vertex': t('admin.model.service.zenmuxVertex'),
+    }
+    return names[key] ?? fallback
+  }
+  const serviceNote = (key: string, fallback: string) => {
+    const notes: Record<string, string> = {
+      'event-generation': t('admin.model.service.eventGenerationDesc'),
+      'code-analysis': t('admin.model.service.codeAnalysisDesc'),
+      'team-auto-match': t('admin.model.service.teamAutoMatchDesc'),
+      'image-generation': t('admin.model.service.imageGenerationDesc'),
+      'github-enrichment': t('admin.model.service.githubEnrichmentDesc'),
+      web3insight: t('admin.model.service.web3insightDesc'),
+      sonar: t('admin.model.service.sonarDesc'),
+      'zenmux-vertex': t('admin.model.service.zenmuxVertexDesc'),
+    }
+    return notes[key] ?? fallback
+  }
 
   useEffect(() => {
     fetch('/api/admin/model-config')
       .then(async (res) => {
         const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Failed to load model configuration')
+        if (!res.ok) throw new Error(data.error || t('admin.model.loadFailed'))
         setConfig(data)
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load model configuration'))
+      .catch((err) => setError(err instanceof Error ? err.message : t('admin.model.loadFailed')))
       .finally(() => setLoading(false))
-  }, [])
+  }, [t])
 
-  async function testConnection(type: 'model' | 'service', key: string) {
+  async function runConnectionTest(type: 'model' | 'service', key: string): Promise<TestResult> {
     const id = `${type}:${key}`
-    setTesting(id)
+    setTesting((prev) => [...new Set([...prev, id])])
     try {
       const res = await fetch('/api/admin/model-config', {
         method: 'POST',
@@ -108,26 +149,54 @@ export default function AdminModelConfigPage() {
         body: JSON.stringify({ type, key }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok && !data.status) throw new Error(data.error || 'Connectivity test failed')
+      if (!res.ok && !data.status) throw new Error(data.error || t('admin.model.testFailed'))
       setResults((prev) => ({ ...prev, [id]: data }))
-      if (data.ok) toast.success(`${key} connection OK`)
-      else toast.error(data.message || `${key} connection failed`)
+      return data as TestResult
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Connectivity test failed'
+      const message = err instanceof Error ? err.message : t('admin.model.testFailed')
+      const failed: TestResult = {
+        ok: false,
+        status: 'error',
+        latencyMs: 0,
+        message,
+        checkedAt: new Date().toISOString(),
+      }
       setResults((prev) => ({
         ...prev,
-        [id]: {
-          ok: false,
-          status: 'error',
-          latencyMs: 0,
-          message,
-          checkedAt: new Date().toISOString(),
-        },
+        [id]: failed,
       }))
-      toast.error(message)
+      return failed
     } finally {
-      setTesting(null)
+      setTesting((prev) => prev.filter((item) => item !== id))
     }
+  }
+
+  async function testConnection(type: 'model' | 'service', key: string) {
+    const data = await runConnectionTest(type, key)
+    if (data.ok) toast.success(t('admin.model.connectionOk').replace('{key}', key))
+    else toast.error(data.message || t('admin.model.connectionFailed').replace('{key}', key))
+  }
+
+  async function testAllConfigured() {
+    if (!config) return
+    const targets = [
+      ...config.models.filter((model) => model.configured).map((model) => ({ type: 'model' as const, key: model.key })),
+      ...config.services.filter((service) => service.status === 'configured').map((service) => ({ type: 'service' as const, key: service.key })),
+    ]
+    if (targets.length === 0) {
+      toast.error(t('admin.model.noConfiguredTargets'))
+      return
+    }
+
+    setBulkProgress({ done: 0, total: targets.length })
+    let ok = 0
+    for (const target of targets) {
+      const result = await runConnectionTest(target.type, target.key)
+      if (result.ok) ok += 1
+      setBulkProgress((prev) => prev ? { ...prev, done: prev.done + 1 } : null)
+    }
+    setBulkProgress(null)
+    toast.success(t('admin.model.testAllDone').replace('{ok}', String(ok)).replace('{total}', String(targets.length)))
   }
 
   function TestSummary({ id }: { id: string }) {
@@ -154,15 +223,32 @@ export default function AdminModelConfigPage() {
         <div className="flex items-center gap-3">
           <Settings size={22} className="text-[var(--color-fg-muted)]" />
           <div>
-            <h1 className="text-2xl font-bold text-[var(--color-fg)]">Model configuration</h1>
-            <p className="text-sm text-[var(--color-fg-muted)]">Providers, model ids, base URLs, env var names, and configuration status.</p>
+            <h1 className="text-2xl font-bold text-[var(--color-fg)]">{t('admin.model.title')}</h1>
+            <p className="text-sm text-[var(--color-fg-muted)]">{t('admin.model.subtitle')}</p>
           </div>
         </div>
-        <Badge variant="outline">Admin only</Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          {config && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={testAllConfigured}
+              disabled={testing.length > 0 || !!bulkProgress}
+            >
+              {bulkProgress ? <Loader2 size={14} className="animate-spin" /> : <PlayCircle size={14} />}
+              {bulkProgress
+                ? t('admin.model.testingAllProgress').replace('{done}', String(bulkProgress.done)).replace('{total}', String(bulkProgress.total))
+                : t('admin.model.testAll')}
+            </Button>
+          )}
+          <Badge variant="outline">{t('admin.common.adminOnly')}</Badge>
+        </div>
       </div>
 
       {loading ? (
-        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-8 text-sm text-[var(--color-fg-muted)]">Loading...</div>
+        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-8 text-sm text-[var(--color-fg-muted)]">{t('admin.common.loading')}</div>
       ) : error ? (
         <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <AlertCircle size={16} /> {error}
@@ -170,25 +256,25 @@ export default function AdminModelConfigPage() {
       ) : config && (
         <>
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            <div className="font-medium">Read-only configuration</div>
-            <p className="mt-1">{config.readOnlyReason}</p>
+            <div className="font-medium">{t('admin.model.readOnlyTitle')}</div>
+            <p className="mt-1">{t('admin.model.readOnlyReason')}</p>
           </div>
 
           <section className="space-y-3">
             <div>
-              <h2 className="text-lg font-semibold text-[var(--color-fg)]">Review models</h2>
-              <p className="text-sm text-[var(--color-fg-muted)]">Runtime model functions used by project review scoring.</p>
+              <h2 className="text-lg font-semibold text-[var(--color-fg)]">{t('admin.model.reviewModels')}</h2>
+              <p className="text-sm text-[var(--color-fg-muted)]">{t('admin.model.reviewModelsDesc')}</p>
             </div>
             <div className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Model</TableHead>
-                    <TableHead>Provider</TableHead>
-                    <TableHead>Base URL</TableHead>
-                    <TableHead>Env</TableHead>
-                    <TableHead>Credits</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>{t('admin.model.colModel')}</TableHead>
+                    <TableHead>{t('admin.model.colProvider')}</TableHead>
+                    <TableHead>{t('admin.model.colBaseUrl')}</TableHead>
+                    <TableHead>{t('admin.model.colEnv')}</TableHead>
+                    <TableHead>{t('admin.model.colCredits')}</TableHead>
+                    <TableHead>{t('admin.model.colStatus')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -197,26 +283,33 @@ export default function AdminModelConfigPage() {
                       <TableCell className="min-w-64">
                         <div className="font-medium text-[var(--color-fg)]">{model.displayName}</div>
                         <div className="mt-1 font-mono text-xs text-[var(--color-fg-muted)]">{model.key} · {model.modelId}</div>
-                        <div className="mt-1 text-xs text-[var(--color-fg-subtle)]">temperature {model.temperature} · {model.notes}</div>
+                        <div className="mt-1 text-xs text-[var(--color-fg-subtle)]">temperature {model.temperature} · {modelNote(model.key)}</div>
                         <TestSummary id={`model:${model.key}`} />
                       </TableCell>
                       <TableCell><Badge variant="outline">{model.provider}</Badge></TableCell>
                       <TableCell className="max-w-56 break-all font-mono text-xs text-[var(--color-fg-muted)]">{model.baseUrl}</TableCell>
-                      <TableCell><EnvList env={model.env} /></TableCell>
+                      <TableCell>
+                        <EnvList
+                          env={model.env}
+                          secretLabel={t('admin.model.secretChip')}
+                          secretTitle={t('admin.model.secretLabel')}
+                          nonSecretTitle={t('admin.model.nonSecretLabel')}
+                        />
+                      </TableCell>
                       <TableCell className="font-mono">{model.credits}</TableCell>
                       <TableCell>
                         <div className="flex flex-col items-start gap-2">
-                          <StatusBadge configured={model.configured} />
+                          <StatusBadge configured={model.configured} labelConfigured={t('admin.model.configured')} labelMissing={t('admin.model.missing')} />
                           <Button
                             type="button"
                             size="sm"
                             variant="outline"
                             className="h-8 gap-1.5"
                             onClick={() => testConnection('model', model.key)}
-                            disabled={testing !== null || !model.configured}
+                            disabled={testing.length > 0 || !model.configured}
                           >
-                            {testing === `model:${model.key}` ? <Loader2 size={13} className="animate-spin" /> : <Wifi size={13} />}
-                            Test
+                            {testing.includes(`model:${model.key}`) ? <Loader2 size={13} className="animate-spin" /> : <Wifi size={13} />}
+                            {t('admin.model.test')}
                           </Button>
                         </div>
                       </TableCell>
@@ -229,8 +322,8 @@ export default function AdminModelConfigPage() {
 
           <section className="space-y-3">
             <div>
-              <h2 className="text-lg font-semibold text-[var(--color-fg)]">App model and helper services</h2>
-              <p className="text-sm text-[var(--color-fg-muted)]">Event generation, MiniMax code analysis, image generation, GitHub/Web3/Sonar helpers.</p>
+              <h2 className="text-lg font-semibold text-[var(--color-fg)]">{t('admin.model.services')}</h2>
+              <p className="text-sm text-[var(--color-fg-muted)]">{t('admin.model.servicesDesc')}</p>
             </div>
             <div className="grid gap-3">
               {config.services.map((service) => (
@@ -238,12 +331,12 @@ export default function AdminModelConfigPage() {
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-semibold text-[var(--color-fg)]">{service.name}</h3>
+                        <h3 className="font-semibold text-[var(--color-fg)]">{serviceName(service.key, service.name)}</h3>
                         <Badge variant="outline">{service.provider}</Badge>
-                        <StatusBadge configured={service.status === 'configured'} />
+                        <StatusBadge configured={service.status === 'configured'} labelConfigured={t('admin.model.configured')} labelMissing={t('admin.model.missing')} />
                       </div>
                       <div className="mt-2 max-w-3xl break-all font-mono text-xs text-[var(--color-fg-muted)]">{service.baseUrl}</div>
-                      <p className="mt-2 text-sm text-[var(--color-fg-muted)]">{service.notes}</p>
+                      <p className="mt-2 text-sm text-[var(--color-fg-muted)]">{serviceNote(service.key, service.notes)}</p>
                       <TestSummary id={`service:${service.key}`} />
                     </div>
                     <Button
@@ -252,13 +345,20 @@ export default function AdminModelConfigPage() {
                       variant="outline"
                       className="h-8 gap-1.5"
                       onClick={() => testConnection('service', service.key)}
-                      disabled={testing !== null || service.status !== 'configured'}
+                      disabled={testing.length > 0 || service.status !== 'configured'}
                     >
-                      {testing === `service:${service.key}` ? <Loader2 size={13} className="animate-spin" /> : <Wifi size={13} />}
-                      Test
+                      {testing.includes(`service:${service.key}`) ? <Loader2 size={13} className="animate-spin" /> : <Wifi size={13} />}
+                      {t('admin.model.test')}
                     </Button>
                   </div>
-                  <div className="mt-3"><EnvList env={service.env} /></div>
+                  <div className="mt-3">
+                    <EnvList
+                      env={service.env}
+                      secretLabel={t('admin.model.secretChip')}
+                      secretTitle={t('admin.model.secretLabel')}
+                      nonSecretTitle={t('admin.model.nonSecretLabel')}
+                    />
+                  </div>
                 </div>
               ))}
             </div>

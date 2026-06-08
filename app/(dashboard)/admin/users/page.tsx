@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
-import { useLocale } from '@/lib/i18n'
+import { useLocale, useT } from '@/lib/i18n'
 import { formatDateLong } from '@/lib/format-date'
 
 type User = {
@@ -30,6 +30,7 @@ const ROLE_COLORS: Record<string, string> = {
 }
 
 export default function AdminUsersPage() {
+  const t = useT()
   const [locale] = useLocale()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -48,12 +49,12 @@ export default function AdminUsersPage() {
     fetch('/api/admin/users')
       .then(async (res) => {
         const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Failed to load users')
+        if (!res.ok) throw new Error(data.error || t('admin.users.loadFailed'))
         if (Array.isArray(data)) setUsers(data)
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load users'))
+      .catch((err) => setError(err instanceof Error ? err.message : t('admin.users.loadFailed')))
       .finally(() => setLoading(false))
-  }, [])
+  }, [t])
 
   const roleCounts = useMemo(() => {
     return users.reduce<Record<string, number>>((acc, user) => {
@@ -88,7 +89,7 @@ export default function AdminUsersPage() {
   const save = async (userId: string) => {
     const role = pendingRole[userId] ?? []
     if (role.length === 0) {
-      toast.error('Select at least one role')
+      toast.error(t('admin.users.selectRole'))
       return
     }
 
@@ -103,10 +104,10 @@ export default function AdminUsersPage() {
     if (res.ok) {
       setUsers((prev) => prev.map((user) => user.id === userId ? { ...user, role } : user))
       setEditing(null)
-      toast.success('Roles updated')
+      toast.success(t('admin.users.rolesUpdated'))
     } else {
       const data = await res.json().catch(() => ({}))
-      toast.error(data.error || 'Failed to save roles')
+      toast.error(data.error || t('admin.users.saveRolesFailed'))
     }
   }
 
@@ -128,11 +129,11 @@ export default function AdminUsersPage() {
 
     const amount = Number(creditAmount)
     if (!Number.isInteger(amount) || amount === 0) {
-      toast.error('Enter a non-zero whole number of credits')
+      toast.error(t('admin.users.creditAmountInvalid'))
       return
     }
     if (creditUser.credits + amount < 0) {
-      toast.error('Adjustment would make the balance negative')
+      toast.error(t('admin.users.creditNegative'))
       return
     }
 
@@ -155,9 +156,9 @@ export default function AdminUsersPage() {
       setCreditUser(null)
       setCreditAmount('')
       setCreditReason('')
-      toast.success(`Credits updated to ${data.credits}`)
+      toast.success(t('admin.users.creditsUpdated').replace('{n}', String(data.credits)))
     } else {
-      toast.error(data.error || 'Failed to adjust credits')
+      toast.error(data.error || t('admin.users.creditAdjustFailed'))
     }
   }
 
@@ -173,11 +174,11 @@ export default function AdminUsersPage() {
         <div className="flex items-center gap-3">
           <Users size={22} className="text-[var(--color-fg-muted)]" />
           <div>
-            <h1 className="text-2xl font-bold text-[var(--color-fg)]">User management</h1>
-            <p className="text-sm text-[var(--color-fg-muted)]">Registered users, role grants, and permission groups.</p>
+            <h1 className="text-2xl font-bold text-[var(--color-fg)]">{t('admin.users.title')}</h1>
+            <p className="text-sm text-[var(--color-fg-muted)]">{t('admin.users.subtitle')}</p>
           </div>
         </div>
-        <Badge variant="outline">{users.length} users</Badge>
+        <Badge variant="outline">{t('admin.users.count').replace('{n}', String(users.length))}</Badge>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-4">
@@ -203,12 +204,12 @@ export default function AdminUsersPage() {
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search email or user id"
+            placeholder={t('admin.users.searchPlaceholder')}
             className="pl-9"
           />
         </div>
         <Button variant="outline" size="sm" onClick={() => { setSearch(''); setRoleFilter('all') }}>
-          Clear filters
+          {t('admin.users.clearFilters')}
         </Button>
       </div>
 
@@ -221,18 +222,18 @@ export default function AdminUsersPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Roles</TableHead>
-                <TableHead>Credits</TableHead>
-                <TableHead>Registered</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t('admin.users.colUser')}</TableHead>
+                <TableHead>{t('admin.users.colRoles')}</TableHead>
+                <TableHead>{t('admin.users.colCredits')}</TableHead>
+                <TableHead>{t('admin.users.colRegistered')}</TableHead>
+                <TableHead className="text-right">{t('admin.users.colActions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={5} className="py-12 text-center text-[var(--color-fg-muted)]">Loading...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="py-12 text-center text-[var(--color-fg-muted)]">{t('admin.common.loading')}</TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="py-12 text-center text-[var(--color-fg-muted)]">No users match the current filters.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="py-12 text-center text-[var(--color-fg-muted)]">{t('admin.users.noMatches')}</TableCell></TableRow>
               ) : filtered.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell>
@@ -276,19 +277,19 @@ export default function AdminUsersPage() {
                   <TableCell className="text-right">
                     {editing === user.id ? (
                       <div className="flex items-center justify-end gap-2">
-                        <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>{t('common.cancel')}</Button>
                         <Button size="sm" onClick={() => save(user.id)} disabled={saving === user.id}>
-                          {saving === user.id ? 'Saving...' : 'Save'}
+                          {saving === user.id ? t('common.saving') : t('common.save')}
                         </Button>
                       </div>
                     ) : (
                       <div className="flex items-center justify-end gap-2">
                         <Button size="sm" variant="outline" onClick={() => openCreditDialog(user)}>
                           <Coins size={14} />
-                          Credits
+                          {t('admin.users.credits')}
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => startEdit(user)}>
-                          Edit roles
+                          {t('admin.users.editRoles')}
                         </Button>
                       </div>
                     )}
@@ -303,42 +304,46 @@ export default function AdminUsersPage() {
       <Dialog open={!!creditUser} onOpenChange={(open) => { if (!open) closeCreditDialog() }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Adjust credits</DialogTitle>
+            <DialogTitle>{t('admin.users.adjustCredits')}</DialogTitle>
             <DialogDescription>
-              {creditUser ? `Current balance for ${creditUser.email}: ${creditUser.credits} credits` : 'Update user credits.'}
+              {creditUser
+                ? t('admin.users.currentBalance')
+                  .replace('{email}', creditUser.email)
+                  .replace('{credits}', String(creditUser.credits))
+                : t('admin.users.updateCredits')}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="credit-amount" className="text-sm font-medium text-[var(--color-fg)]">
-                Amount
+                {t('admin.users.amount')}
               </label>
               <Input
                 id="credit-amount"
                 value={creditAmount}
                 onChange={(event) => setCreditAmount(event.target.value)}
                 inputMode="numeric"
-                placeholder="Use positive or negative whole numbers"
+                placeholder={t('admin.users.amountPlaceholder')}
                 disabled={creditSaving}
               />
               <p className={`text-xs ${creditPreview !== null && creditPreview < 0 ? 'text-red-700' : 'text-[var(--color-fg-muted)]'}`}>
                 {creditPreview === null
-                  ? 'Examples: 50 adds credits, -10 subtracts credits.'
-                  : `New balance: ${creditPreview} credits`}
+                  ? t('admin.users.amountHint')
+                  : t('admin.users.newBalance').replace('{n}', String(creditPreview))}
               </p>
             </div>
 
             <div className="space-y-2">
               <label htmlFor="credit-reason" className="text-sm font-medium text-[var(--color-fg)]">
-                Reason
+                {t('admin.users.reason')}
               </label>
               <Textarea
                 id="credit-reason"
                 value={creditReason}
                 onChange={(event) => setCreditReason(event.target.value)}
                 maxLength={500}
-                placeholder="Optional audit note"
+                placeholder={t('admin.users.reasonPlaceholder')}
                 disabled={creditSaving}
               />
               <p className="text-xs text-[var(--color-fg-muted)]">{creditReason.length}/500</p>
@@ -346,9 +351,9 @@ export default function AdminUsersPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="ghost" onClick={closeCreditDialog} disabled={creditSaving}>Cancel</Button>
+            <Button variant="ghost" onClick={closeCreditDialog} disabled={creditSaving}>{t('common.cancel')}</Button>
             <Button onClick={adjustCredits} disabled={creditSaving || !creditAmount.trim() || (creditPreview !== null && creditPreview < 0)}>
-              {creditSaving ? 'Saving...' : 'Apply adjustment'}
+              {creditSaving ? t('common.saving') : t('admin.users.applyAdjustment')}
             </Button>
           </DialogFooter>
         </DialogContent>
