@@ -1,8 +1,6 @@
 import { getChatConfigForModelKey, getTemperatureForModel } from './zenmux'
 import { MODEL_IDS } from './models'
 
-console.log('[ai.ts] module loaded OK')
-
 interface ScoreProject {
   name: string
   github_url: string | null
@@ -94,7 +92,9 @@ export async function scoreProject(
   sonarAnalysis?: Record<string, unknown> | null,
   codeAnalysis?: { is_real_code?: boolean; business_match_score?: number; code_quality_summary?: string } | null
 ): Promise<ScoreResult> {
-  console.log('[scoreProject] start', modelKey, project.name)
+  if (process.env.DEBUG_AI === '1') {
+    console.log('[scoreProject] start', modelKey, project.name)
+  }
   const modelId = MODEL_IDS[modelKey]
   if (!modelId) throw new Error(`Unknown model: ${modelKey}`)
 

@@ -19,7 +19,7 @@ export async function PATCH(
   // OPE-25: admin bypass — 任意活动可改报名；否则必须是 owner
   const { data: event } = await db
     .from('events')
-    .select('id, user_id')
+    .select('id, user_id, models, sonar_enabled')
     .eq('id', eventId)
     .is('deleted_at', null)
     .maybeSingle()
@@ -98,12 +98,28 @@ export async function PATCH(
     if (!projErr && project) {
       await db.from('registrations').update({ project_id: project.id }).eq('id', regId)
 
-      // Trigger pre-analysis
-      await fetch(`${process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/events/${eventId}/analyze`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.INTERNAL_SECRET ?? '' },
-        body: JSON.stringify({ project_id: project.id }),
-      }).catch(() => {/* fire and forget */})
+      const queueEntry = {
+        project_id: project.id,
+        event_id: eventId,
+        status: 'pending',
+        models: (event.models as string[] | null) ?? [],
+        sonar_enabled: Boolean(event.sonar_enabled),
+        run_mode: 'fresh',
+        run_module: 'all',
+        retry_scope: null,
+        force_reset: false,
+      }
+      const queued = await db.from('analysis_queue').insert(queueEntry)
+      if (queued.error && /run_mode|run_module|retry_scope|force_reset|schema cache/i.test(queued.error.message)) {
+        await db.from('analysis_queue').insert({
+          project_id: queueEntry.project_id,
+          event_id: queueEntry.event_id,
+          status: queueEntry.status,
+          models: queueEntry.models,
+          sonar_enabled: queueEntry.sonar_enabled,
+        })
+      }
+      await db.from('projects').update({ analysis_status: 'pending' }).eq('id', project.id)
     }
   }
 

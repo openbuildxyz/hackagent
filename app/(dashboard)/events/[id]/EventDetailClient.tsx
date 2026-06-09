@@ -10,14 +10,6 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -34,9 +26,6 @@ import {
   Play,
   ExternalLink,
   ArrowLeft,
-  Github,
-  Globe,
-  Tag,
   Users,
   Pencil,
   Plus,

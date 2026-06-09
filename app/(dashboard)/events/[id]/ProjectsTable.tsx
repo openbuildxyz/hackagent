@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo } from 'react'
 import Link from 'next/link'
-import { Github, Globe, Tag, Trash2, CheckSquare, Pencil, ChevronUp, ChevronDown, Video, X as XIcon, ImageIcon } from 'lucide-react'
+import { Github, Globe, Tag, Trash2, CheckSquare, Pencil, ChevronUp, ChevronDown, Video, X as XIcon } from 'lucide-react'
 import ImageUpload from '@/components/ImageUpload'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
@@ -198,7 +198,6 @@ export default function ProjectsTable({
   const fl = fieldLabels  // alias
   const t = useT()
   const isDone = eventStatus === 'done'
-  const statusLabel = (s: string) => progressLabel(s) || t(('table.analysisStatus.' + s) as Parameters<typeof t>[0]) || s
   const [projects, setProjects] = useState(initialProjects)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
@@ -326,7 +325,12 @@ export default function ProjectsTable({
     else setSelected(new Set(projects.map(p => p.id)))
   }
   const toggleOne = (id: string) => {
-    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   }
 
   const doDelete = useCallback(async (ids: string[] | 'all') => {

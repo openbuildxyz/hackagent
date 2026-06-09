@@ -1,4 +1,17 @@
-import { computeReviewProgress } from '../lib/review-progress.ts'
+import { readFileSync } from 'node:fs'
+import { Buffer } from 'node:buffer'
+import ts from 'typescript'
+
+const source = readFileSync(new URL('../lib/review-progress.ts', import.meta.url), 'utf8')
+const compiled = ts.transpileModule(source, {
+  compilerOptions: {
+    module: ts.ModuleKind.ESNext,
+    target: ts.ScriptTarget.ES2020,
+  },
+}).outputText
+const { computeReviewProgress } = await import(
+  `data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`
+)
 
 function assertEqual(actual, expected, message) {
   const a = JSON.stringify(actual)

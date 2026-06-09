@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
@@ -10,6 +9,7 @@ import { ExternalLink, Github, Search } from 'lucide-react'
 import { useT, useLocale } from '@/lib/i18n'
 import { formatDateLong } from '@/lib/format-date'
 import PublicNavbar from '@/components/PublicNavbar'
+import EventCover from '@/components/EventCover'
 
 type Track = {
   id: string
@@ -261,19 +261,6 @@ export default function VoteClient({
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [done, setDone] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [dark, setDark] = useState(false)
-
-  useEffect(() => {
-    setDark(document.documentElement.classList.contains('dark'))
-  }, [])
-
-  const toggleTheme = () => {
-    const next = !dark
-    setDark(next)
-    if (next) document.documentElement.classList.add('dark')
-    else document.documentElement.classList.remove('dark')
-    try { localStorage.setItem('theme', next ? 'dark' : 'light') } catch {}
-  }
   const countdown = useCountdown(initialEvent.ends_at)
   const voteLimit = initialEvent.vote_limit
   const remaining = voteLimit - myVotes.length
@@ -301,7 +288,7 @@ export default function VoteClient({
     } finally {
       setLoadingId(null)
     }
-  }, [eventId])
+  }, [eventId, userId])
 
   const handleUnvote = useCallback(async (projectId: string) => {
     setLoadingId(projectId)
@@ -353,14 +340,11 @@ export default function VoteClient({
             </div>
           )}
           {initialEvent.banner_url && (
-            <div className="mb-4 overflow-hidden rounded-xl border border-token bg-black shadow-sm">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={initialEvent.banner_url}
-                alt={initialEvent.title}
-                className="mx-auto block h-auto max-h-none w-full object-contain md:max-h-[520px] md:w-auto md:max-w-full"
-              />
-            </div>
+            <EventCover
+              src={initialEvent.banner_url}
+              alt={initialEvent.title}
+              className="mb-4 rounded-xl border border-token bg-black shadow-sm"
+            />
           )}
           <h1 className="text-2xl md:text-3xl font-bold text-fg">{initialEvent.title}</h1>
           {initialEvent.vote_config_description && (
