@@ -29,9 +29,10 @@ const DEFAULT_FIELD_I18N_KEYS: Record<string, TranslationKey> = {
 export interface CustomField {
   key: string
   label: string
-  type: 'text' | 'textarea' | 'url'
+  type: 'text' | 'textarea' | 'url' | 'select' | 'multiselect'
   required: boolean
   default?: boolean
+  options?: string[]
 }
 
 export interface Track {
@@ -216,6 +217,15 @@ export default function EventRegistrationForm({
   const deadline = eventConfig.registration_deadline
   const isClosed = deadline ? new Date(deadline) < new Date() : false
   const fields = config?.fields ?? []
+  const toggleMultiValue = (fieldKey: string, option: string) => {
+    setFormValues(values => {
+      const selected = (values[fieldKey] ?? '').split(',').map(value => value.trim()).filter(Boolean)
+      const next = selected.includes(option)
+        ? selected.filter(value => value !== option)
+        : [...selected, option]
+      return { ...values, [fieldKey]: next.join(', ') }
+    })
+  }
 
   if (checkingRegistration) {
     return (
@@ -378,6 +388,57 @@ export default function EventRegistrationForm({
                         onChange={e => setFormValues(v => ({ ...v, [field.key]: e.target.value }))}
                         required={field.required}
                       />
+                    </div>
+                  )
+                }
+
+                if (field.type === 'select') {
+                  return (
+                    <div key={field.key} className="space-y-1.5">
+                      <Label htmlFor={field.key}>
+                        {resolveFieldLabel(field, t)}
+                        {field.required && <span className="text-red-500 ml-1">*</span>}
+                      </Label>
+                      <select
+                        id={field.key}
+                        value={formValues[field.key] ?? ''}
+                        onChange={e => setFormValues(v => ({ ...v, [field.key]: e.target.value }))}
+                        className="w-full border rounded-md px-3 py-2 text-sm bg-bg focus:outline-none focus:ring-2 focus:ring-ring"
+                        required={field.required}
+                      >
+                        <option value="">{zh ? '请选择' : 'Select an option'}</option>
+                        {(field.options ?? []).map(option => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )
+                }
+
+                if (field.type === 'multiselect') {
+                  const selected = (formValues[field.key] ?? '').split(',').map(value => value.trim()).filter(Boolean)
+                  return (
+                    <div key={field.key} className="space-y-1.5">
+                      <Label>
+                        {resolveFieldLabel(field, t)}
+                        {field.required && <span className="text-red-500 ml-1">*</span>}
+                      </Label>
+                      <div className="flex flex-wrap gap-2 rounded-md border border-token bg-bg p-2">
+                        {(field.options ?? []).map(option => (
+                          <label key={option} className="inline-flex items-center gap-1.5 rounded-full border border-token px-2.5 py-1 text-xs cursor-pointer hover:border-[var(--color-border-strong)]">
+                            <input
+                              type="checkbox"
+                              checked={selected.includes(option)}
+                              onChange={() => toggleMultiValue(field.key, option)}
+                              className="h-3 w-3"
+                            />
+                            {option}
+                          </label>
+                        ))}
+                      </div>
+                      {field.required && !selected.length && (
+                        <input className="sr-only" tabIndex={-1} required value="" onChange={() => {}} />
+                      )}
                     </div>
                   )
                 }

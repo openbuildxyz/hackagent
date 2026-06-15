@@ -525,6 +525,7 @@ const en = {
   'reg.manage.selected': '{n} selected',
   'reg.manage.track': 'Track',
   'reg.manage.github': 'GitHub',
+  'reg.manage.customFields': 'Custom Fields',
 
   // Landing page
   'landing.nav.features': 'Features',

@@ -50,6 +50,12 @@ interface Track {
   name: string
 }
 
+interface RegistrationField {
+  key: string
+  label: string
+  default?: boolean
+}
+
 export default function RegistrationsPage() {
   const params = useParams()
   const id = params.id as string
@@ -58,6 +64,7 @@ export default function RegistrationsPage() {
 
   const [registrations, setRegistrations] = useState<Registration[]>([])
   const [tracks, setTracks] = useState<Track[]>([])
+  const [registrationFields, setRegistrationFields] = useState<RegistrationField[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
@@ -77,6 +84,8 @@ export default function RegistrationsPage() {
       if (eventRes.ok) {
         const ev = await eventRes.json()
         setTracks(Array.isArray(ev.tracks) ? ev.tracks : [])
+        const fields = ev.registration_config?.fields
+        setRegistrationFields(Array.isArray(fields) ? fields.filter((field: RegistrationField) => !field.default) : [])
       }
     } catch {
       toast.error('加载失败')
@@ -91,6 +100,9 @@ export default function RegistrationsPage() {
     if (!trackId) return null
     return tracks.find(tr => tr.id === trackId)?.name ?? trackId
   }
+  const customFieldLabel = (key: string) => registrationFields.find(field => field.key === key)?.label ?? key
+  const extraEntries = (reg: Registration) => Object.entries(reg.extra_fields ?? {})
+    .filter(([, value]) => String(value ?? '').trim().length > 0)
 
   const handleApprove = async (ids: string[]) => {
     setActionLoading(true)
@@ -230,6 +242,7 @@ export default function RegistrationsPage() {
                 <TableHead>{t('reg.manage.email')}</TableHead>
                 <TableHead>{t('reg.manage.track')}</TableHead>
                 <TableHead>{t('reg.manage.github')}</TableHead>
+                <TableHead>{t('reg.manage.customFields')}</TableHead>
                 <TableHead>{t('reg.manage.time')}</TableHead>
                 <TableHead>{t('reg.manage.status')}</TableHead>
                 <TableHead className="text-right">{t('reg.manage.actions')}</TableHead>
@@ -275,6 +288,17 @@ export default function RegistrationsPage() {
                       <a href={reg.github_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate block">
                         {reg.github_url.replace('https://github.com/', '')}
                       </a>
+                    ) : '—'}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground max-w-[220px]">
+                    {extraEntries(reg).length > 0 ? (
+                      <div className="space-y-1">
+                        {extraEntries(reg).map(([key, value]) => (
+                          <div key={key} className="truncate" title={`${customFieldLabel(key)}: ${value}`}>
+                            <span className="font-medium text-fg-muted">{customFieldLabel(key)}:</span> {value}
+                          </div>
+                        ))}
+                      </div>
                     ) : '—'}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">

@@ -525,6 +525,7 @@ const zh = {
   'reg.manage.selected': '已选 {n} 条',
   'reg.manage.track': '赛道',
   'reg.manage.github': 'GitHub',
+  'reg.manage.customFields': '自定义字段',
 
   // Landing page
   'landing.nav.features': '功能',

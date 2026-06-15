@@ -42,6 +42,7 @@ import {
   UsersRound,
   Sparkles,
   ImageIcon,
+  Settings2,
 } from 'lucide-react'
 import { MODEL_NAMES, MODEL_COLORS, MODEL_CREDITS } from '@/lib/models'
 import { useT, useLocale } from '@/lib/i18n'
@@ -801,6 +802,12 @@ export default function EventDetailClient() {
               <Button variant="outline" size="sm" className="gap-1.5">
                 <ClipboardList size={14} />
                 {t('reg.manage')}
+              </Button>
+            </Link>
+            <Link href={`/events/${id}/edit`}>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <Settings2 size={14} />
+                {t('reg.formConfig')}
               </Button>
             </Link>
             <Link href={`/events/${id}/teams`}>

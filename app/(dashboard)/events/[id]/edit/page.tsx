@@ -63,6 +63,18 @@ function genTrackId() {
   return Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4)
 }
 
+function genCustomFieldKey(label: string, existingFields: CustomField[]) {
+  const slug = label.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '').replace(/^_+|_+$/g, '')
+  const base = slug ? `custom_${slug}` : 'custom_field'
+  const existing = new Set(existingFields.map(field => field.key))
+  if (!existing.has(base)) return base
+  let key = ''
+  do {
+    key = `${base}_${Math.random().toString(36).slice(2, 6)}`
+  } while (existing.has(key))
+  return key
+}
+
 // Convert datetime-local string to ISO or back
 function toDatetimeLocal(iso: string | null | undefined) {
   if (!iso) return ''
@@ -184,11 +196,13 @@ export default function EditEventPage() {
     const fieldType = type ?? newFieldType
     const fieldOptions = options ?? (['select', 'multiselect'].includes(fieldType) ? newFieldOptions : undefined)
     if (!fieldLabel.trim()) return
-    const key = 'custom_' + fieldLabel.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
-    setCustomFields(prev => [
-      ...prev,
-      { key, label: fieldLabel.trim(), type: fieldType, required: false, options: fieldOptions?.length ? fieldOptions : undefined },
-    ])
+    setCustomFields(prev => {
+      const key = genCustomFieldKey(fieldLabel, prev)
+      return [
+        ...prev,
+        { key, label: fieldLabel.trim(), type: fieldType, required: false, options: fieldOptions?.length ? fieldOptions : undefined },
+      ]
+    })
     if (!label) {
       setNewFieldLabel('')
       setNewFieldType('text')
@@ -494,9 +508,7 @@ export default function EditEventPage() {
             </div>
             <Switch checked={regOpen} onCheckedChange={setRegOpen} />
           </div>
-          {regOpen && (
-            <>
-              <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium">{t('reg.autoApprove')}</p>
                   <p className="text-xs text-muted-foreground">{t('reg.autoApproveDesc')}</p>
@@ -742,8 +754,6 @@ export default function EditEventPage() {
                   </div>
                 </div>
               </div>
-            </>
-          )}
         </CardContent>
       </Card>
 
