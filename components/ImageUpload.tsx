@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import NextImage from 'next/image'
 import { Loader2, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useT } from '@/lib/i18n'
@@ -115,7 +116,7 @@ export default function ImageUpload({ value, onChange, bucket, path, label, aspe
           onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}
         >
           {value ? (
-            <img src={value} alt="" className="w-full h-full object-cover" />
+            <NextImage src={value} alt="" fill sizes={isSquare ? '96px' : '100vw'} className="object-cover" unoptimized />
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-fg-subtle">
               <Upload size={isSquare ? 16 : 18} />

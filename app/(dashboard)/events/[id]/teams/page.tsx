@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -60,7 +60,7 @@ export default function TeamsPage() {
   const [newMax, setNewMax] = useState(4)
   const [newSkills, setNewSkills] = useState('')
 
-  async function loadTeams() {
+  const loadTeams = useCallback(async () => {
     setLoading(true)
     try {
       const res = await fetch(`/api/teams?event_id=${eventId}`)
@@ -72,9 +72,9 @@ export default function TeamsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [eventId, t])
 
-  useEffect(() => { loadTeams() }, [eventId])
+  useEffect(() => { loadTeams() }, [loadTeams])
 
   async function handleCreate() {
     if (!newName.trim()) { toast.error(t('teams.hall.nameRequired')); return }

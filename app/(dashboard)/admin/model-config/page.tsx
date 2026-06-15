@@ -99,8 +99,24 @@ export default function AdminModelConfigPage() {
   const [testing, setTesting] = useState<string[]>([])
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null)
   const [results, setResults] = useState<Record<string, TestResult>>({})
+  const resultValues = Object.values(results)
+  const resultCounts = {
+    total: resultValues.length,
+    ok: resultValues.filter((result) => result.ok).length,
+    warning: resultValues.filter((result) => result.status === 'warning').length,
+    failed: resultValues.filter((result) => !result.ok && result.status !== 'warning').length,
+  }
 
   const modelNote = (key: string) => key === 'kimi' ? t('admin.model.noteKimi') : t('admin.model.noteDefault')
+  const statusLabel = (status: TestResult['status']) => {
+    const labels: Record<TestResult['status'], string> = {
+      ok: t('admin.model.result.ok'),
+      warning: t('admin.model.result.warning'),
+      error: t('admin.model.result.error'),
+      missing: t('admin.model.result.missing'),
+    }
+    return labels[status]
+  }
   const serviceName = (key: string, fallback: string) => {
     const names: Record<string, string> = {
       'event-generation': t('admin.model.service.eventGeneration'),
@@ -210,8 +226,8 @@ export default function AdminModelConfigPage() {
           : 'text-red-700'
     return (
       <div className={`mt-2 max-w-xl text-xs ${color}`}>
-        <span className="font-medium">{result.status.toUpperCase()}</span>
-        <span className="text-[var(--color-fg-subtle)]"> · {result.latencyMs}ms{result.httpStatus ? ` · HTTP ${result.httpStatus}` : ''}</span>
+        <span className="font-medium">{statusLabel(result.status)}</span>
+        <span className="text-[var(--color-fg-subtle)]"> · {result.latencyMs}ms{result.httpStatus ? ` · HTTP ${result.httpStatus}` : ''} · {new Date(result.checkedAt).toLocaleTimeString()}</span>
         <div className="mt-0.5 break-words">{result.message}</div>
       </div>
     )
@@ -260,6 +276,22 @@ export default function AdminModelConfigPage() {
             <p className="mt-1">{t('admin.model.readOnlyReason')}</p>
           </div>
 
+          {resultCounts.total > 0 && (
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              {[
+                [t('admin.model.result.total'), resultCounts.total],
+                [t('admin.model.result.ok'), resultCounts.ok],
+                [t('admin.model.result.warning'), resultCounts.warning],
+                [t('admin.model.result.failed'), resultCounts.failed],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
+                  <div className="text-[11px] text-[var(--color-fg-muted)]">{label}</div>
+                  <div className="mt-1 text-lg font-semibold">{value}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <section className="space-y-3">
             <div>
               <h2 className="text-lg font-semibold text-[var(--color-fg)]">{t('admin.model.reviewModels')}</h2>
@@ -283,7 +315,7 @@ export default function AdminModelConfigPage() {
                       <TableCell className="min-w-64">
                         <div className="font-medium text-[var(--color-fg)]">{model.displayName}</div>
                         <div className="mt-1 font-mono text-xs text-[var(--color-fg-muted)]">{model.key} · {model.modelId}</div>
-                        <div className="mt-1 text-xs text-[var(--color-fg-subtle)]">temperature {model.temperature} · {modelNote(model.key)}</div>
+                        <div className="mt-1 text-xs text-[var(--color-fg-subtle)]">{t('admin.model.temperature')} {model.temperature} · {modelNote(model.key)}</div>
                         <TestSummary id={`model:${model.key}`} />
                       </TableCell>
                       <TableCell><Badge variant="outline">{model.provider}</Badge></TableCell>

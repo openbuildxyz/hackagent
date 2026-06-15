@@ -8,6 +8,7 @@ import LogoutButton from './LogoutButton'
 import ChangePasswordButton from './ChangePasswordButton'
 import { useLocale, useT } from '@/lib/i18n'
 import type { Locale } from '@/lib/i18n'
+import { canCreateEvents, canUseReviewerTools, isPlatformAdmin } from '@/lib/permissions'
 
 function NavItem({ href, icon, label, active }: { href: string; icon: React.ReactNode; label: string; active: boolean }) {
   return (
@@ -72,13 +73,13 @@ export default function SidebarContent({ email, credits, role = ['viewer'] }: { 
 
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         <NavItem href="/dashboard" active={isActive('/dashboard', true) || pathname === '/events' || (pathname.startsWith('/events/') && !pathname.startsWith('/events/new'))} icon={<LayoutDashboard size={15} />} label={t('nav.myEvents')} />
-        {(role.includes('admin') || role.includes('organizer')) && (
+        {canCreateEvents(role) && (
           <NavItem href="/events/new" active={isActive('/events/new')} icon={<Plus size={15} />} label={t('nav.newEvent')} />
         )}
-        {role.includes('reviewer') && (
+        {canUseReviewerTools(role) && (
           <NavItem href="/my-reviews" active={isActive('/my-reviews')} icon={<ClipboardList size={15} />} label={t('nav.myReviews')} />
         )}
-        {role.includes('admin') && (
+        {isPlatformAdmin(role) && (
           <>
             <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-fg-subtle)]">{t('admin.nav.section')}</div>
             <NavItem href="/admin" active={isActive('/admin', true)} icon={<Shield size={15} />} label={t('admin.nav.overview')} />

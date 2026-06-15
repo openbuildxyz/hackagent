@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic'
 import { createServiceClient } from '@/lib/supabase-server'
 import { getServerLocale } from '@/lib/i18n-server'
 import { LocaleProvider } from '@/lib/i18n'
+import { normalizeRoles } from '@/lib/permissions'
 import SidebarContent from './SidebarContent'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -28,7 +29,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .eq('id', session.userId)
     .single()
 
-  const role: string[] = Array.isArray(user?.role) ? user.role : (user?.role ? [user.role as string] : ['viewer'])
+  const role = normalizeRoles(user?.role)
   const locale = await getServerLocale()
 
   return (

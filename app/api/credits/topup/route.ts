@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/session'
 
 /**
@@ -9,7 +9,7 @@ import { getSessionUser } from '@/lib/session'
  * Re-enable after integrating a payment gateway (Stripe/支付宝/微信) with
  * signed webhooks + idempotent order ledger.
  */
-export async function POST(_req: NextRequest) {
+export async function POST() {
   const session = await getSessionUser()
   if (!session) {
     return NextResponse.json({ error: '未登录' }, { status: 401 })

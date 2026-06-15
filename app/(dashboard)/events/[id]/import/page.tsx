@@ -94,9 +94,6 @@ function modelCredits(modelKey: string, multiplier: number): number {
   return Math.ceil(base * multiplier)
 }
 
-// Keep old constant map for legacy usage
-const MODEL_CREDITS: Record<string, number> = MODEL_CREDITS_BASE
-
 const AVAILABLE_MODELS = Object.entries(MODEL_NAMES).map(([key, name]) => ({ key, name }))
 
 type DetectState =
@@ -146,7 +143,6 @@ export default function ImportPage() {
   const [analyzingActive, setAnalyzingActive] = useState(false)
   const [eventDimensions, setEventDimensions] = useState<Array<{ name: string; description?: string }>>([])
   const [eventTracks, setEventTracks] = useState<Track[]>([])
-  const [trackCsvLabel, setTrackCsvLabel] = useState<string>('')
 
   // Model config state
   const [selectedModels, setSelectedModels] = useState<string[]>([])
@@ -285,9 +281,6 @@ export default function ImportPage() {
     const trackCsvCol = trackRow?.csvColumn || null
     if (trackLabel && trackCsvCol) {
       extraMapping[trackLabel] = trackCsvCol
-      setTrackCsvLabel(trackLabel)
-    } else {
-      setTrackCsvLabel('')
     }
     const fullMapping = {
       ...stdMapping,

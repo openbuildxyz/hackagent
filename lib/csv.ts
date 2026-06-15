@@ -134,8 +134,6 @@ export function parseCSV(text: string): ParseResult {
     return { valid, errors }
   }
 
-  const standardIdxSet1 = new Set([nameIdx, githubIdx, demoIdx, descIdx, teamIdx, tagsIdx].filter(i => i >= 0))
-
   for (let i = 1; i < allRows.length; i++) {
     const cols = allRows[i]
     const rowNum = i + 1
@@ -205,8 +203,6 @@ export function parseCSVWithMapping(
       if (idx >= 0) extraColMap.push({ label, idx })
     }
   }
-
-  const standardIdxSet2 = new Set([nameIdx, githubIdx, demoIdx, descIdx, teamIdx, tagsIdx, ...extraColMap.map(e => e.idx)].filter(i => i >= 0))
 
   const missing: string[] = []
   if (nameIdx < 0)   missing.push('name（项目名称）')

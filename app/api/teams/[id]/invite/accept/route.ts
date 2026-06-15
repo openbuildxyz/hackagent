@@ -45,12 +45,13 @@ export async function POST(
   }
 
   // Add member + mark invite accepted
-  const [{ error: memberErr }, { error: reqErr }] = await Promise.all([
+  const [{ error: memberErr }, { error: requestErr }] = await Promise.all([
     supabase.from('team_members').insert({ team_id: teamId, user_id: user.userId, role: 'member' }),
     supabase.from('team_join_requests').update({ status: 'accepted' }).eq('id', invite.id),
   ])
 
   if (memberErr) return NextResponse.json({ error: memberErr.message }, { status: 500 })
+  if (requestErr) return NextResponse.json({ error: requestErr.message }, { status: 500 })
 
   return NextResponse.json({ success: true, message: 'Joined team!' })
 }

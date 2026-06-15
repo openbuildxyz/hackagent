@@ -28,6 +28,7 @@ export default function AdminInviteCodesPage() {
   const [codes, setCodes] = useState<InviteCode[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
+  const [gettingOne, setGettingOne] = useState(false)
   const [error, setError] = useState('')
   const [count, setCount] = useState('1')
   const [copied, setCopied] = useState<string | null>(null)
@@ -72,6 +73,36 @@ export default function AdminInviteCodesPage() {
       toast.success(t('admin.invites.generated').replace('{n}', String(created.length)))
     } finally {
       setCreating(false)
+    }
+  }
+
+  const getOneInviteCode = async () => {
+    setGettingOne(true)
+    try {
+      const existing = unusedCodes[0]
+      if (existing) {
+        await copyText(existing.id, existing.code)
+        return
+      }
+
+      const res = await fetch('/api/admin/invite-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count: 1 }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || t('admin.invites.generateFailed'))
+        return
+      }
+      const created = Array.isArray(data) ? data : []
+      setCodes((prev) => [...created, ...prev])
+      if (created[0]?.code) {
+        await copyText(created[0].id, created[0].code)
+        toast.success(t('admin.invites.gotOne'))
+      }
+    } finally {
+      setGettingOne(false)
     }
   }
 
@@ -123,6 +154,15 @@ export default function AdminInviteCodesPage() {
           >
             {copied === 'all-unused' ? <Check size={14} /> : <Copy size={14} />}
             {t('admin.invites.copyUnused')}
+          </Button>
+          <Button
+            variant="secondary"
+            disabled={creating || gettingOne}
+            onClick={getOneInviteCode}
+            className="gap-1.5"
+          >
+            {gettingOne ? <Loader2 size={14} className="animate-spin" /> : <Ticket size={14} />}
+            {t('admin.invites.getOne')}
           </Button>
           <p className="text-xs text-[var(--color-fg-muted)]">{t('admin.invites.generateHint')}</p>
         </CardContent>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUser, getSessionUserWithRole } from '@/lib/session'
+import { canCreateEvents } from '@/lib/permissions'
 import { rateLimit, getClientIp, rateLimitHeaders } from '@/lib/ratelimit'
 
 export async function GET(request: NextRequest) {
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
 
   const db = createServiceClient()
 
-  // OPE-25: admin 看全部活动；非 admin 仅看自己名下
+  // OPE-25: platform admins see all events; organizers see their own.
   let q = db
     .from('events')
     .select('*')
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
     .eq('id', session.userId)
     .single()
 
-  if (!userRow?.role?.includes('admin') && !userRow?.role?.includes('organizer')) {
+  if (!canCreateEvents(userRow?.role)) {
     return NextResponse.json({ error: '无创建权限，请联系管理员申请' }, { status: 403 })
   }
 

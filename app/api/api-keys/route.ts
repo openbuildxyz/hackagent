@@ -4,7 +4,7 @@ import { getSessionUser } from '@/lib/session'
 import { generateApiKey } from '@/lib/apikey'
 
 // GET — 列出当前用户所有 API keys
-export async function GET(_request: NextRequest) {
+export async function GET() {
   const session = await getSessionUser()
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

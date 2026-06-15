@@ -15,6 +15,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import {
@@ -26,7 +33,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { toast } from 'sonner'
-import { ArrowLeft, Check, X, Loader2, Users, Search, Download } from 'lucide-react'
+import { ArrowLeft, Check, X, Loader2, Users, Search, Download, Eye } from 'lucide-react'
 import { useT } from '@/lib/i18n'
 import { formatDateShort } from '@/lib/format-date'
 
@@ -81,6 +88,7 @@ export default function RegistrationsPage() {
   const [rejectTargetIds, setRejectTargetIds] = useState<string[]>([])
   const [rejectReason, setRejectReason] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+  const [detailRegistration, setDetailRegistration] = useState<Registration | null>(null)
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [trackFilter, setTrackFilter] = useState('all')
@@ -195,6 +203,13 @@ export default function RegistrationsPage() {
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
   }
+
+  const DetailRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
+    <div className="grid gap-1 border-b border-token py-3 last:border-0">
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      <div className="break-words text-sm">{children || '—'}</div>
+    </div>
+  )
 
   const handleApprove = async (ids: string[]) => {
     setActionLoading(true)
@@ -463,8 +478,18 @@ export default function RegistrationsPage() {
                   </TableCell>
                   <TableCell>{statusBadge(reg.status)}</TableCell>
                   <TableCell className="text-right">
-                    {reg.status === 'pending' && (
-                      <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 gap-1"
+                        onClick={() => setDetailRegistration(reg)}
+                      >
+                        <Eye size={12} />
+                        {t('reg.manage.detail')}
+                      </Button>
+                      {reg.status === 'pending' && (
+                        <>
                         <Button
                           size="sm"
                           variant="outline"
@@ -485,8 +510,9 @@ export default function RegistrationsPage() {
                           <X size={12} />
                           {t('reg.manage.reject')}
                         </Button>
-                      </div>
-                    )}
+                        </>
+                      )}
+                    </div>
                     {reg.status === 'rejected' && reg.reject_reason && (
                       <span className="text-xs text-muted-foreground truncate max-w-[120px] block text-right" title={reg.reject_reason}>
                         {reg.reject_reason}
@@ -525,6 +551,85 @@ export default function RegistrationsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Sheet open={Boolean(detailRegistration)} onOpenChange={(open) => !open && setDetailRegistration(null)}>
+        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl">
+          <SheetHeader>
+            <SheetTitle>{t('reg.manage.detailTitle')}</SheetTitle>
+            <SheetDescription>{t('reg.manage.detailDesc')}</SheetDescription>
+          </SheetHeader>
+          {detailRegistration && (
+            <div className="mt-6 space-y-6">
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('reg.manage.basicInfo')}</div>
+                <div className="rounded-lg border border-token px-4">
+                  <DetailRow label={t('reg.manage.team')}>{detailRegistration.team_name ?? '—'}</DetailRow>
+                  <DetailRow label={t('reg.manage.source')}>
+                    {detailRegistration.is_agent ? t('reg.manage.sourceAgent') : t('reg.manage.sourceHuman')}
+                  </DetailRow>
+                  <DetailRow label={t('reg.manage.email')}>{detailRegistration.users?.email ?? '—'}</DetailRow>
+                  <DetailRow label={t('reg.manage.track')}>{trackName(detailRegistration.track_id) ?? '—'}</DetailRow>
+                  <DetailRow label={t('reg.manage.github')}>
+                    {detailRegistration.github_url ? (
+                      <a href={detailRegistration.github_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        {detailRegistration.github_url}
+                      </a>
+                    ) : '—'}
+                  </DetailRow>
+                  <DetailRow label={t('reg.manage.status')}>{statusBadge(detailRegistration.status)}</DetailRow>
+                  <DetailRow label={t('reg.manage.time')}>{formatDateShort(detailRegistration.submitted_at)}</DetailRow>
+                  <DetailRow label="agent_id">{detailRegistration.agent_id ?? '—'}</DetailRow>
+                  <DetailRow label="project_id">
+                    {detailRegistration.project_id ? (
+                      <Link href={`/events/${id}/projects/${detailRegistration.project_id}`} className="text-blue-600 hover:underline">
+                        {detailRegistration.project_id}
+                      </Link>
+                    ) : '—'}
+                  </DetailRow>
+                  {detailRegistration.reject_reason && (
+                    <DetailRow label={t('reg.manage.rejectReason')}>{detailRegistration.reject_reason}</DetailRow>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('reg.manage.customFields')}</div>
+                <div className="rounded-lg border border-token px-4">
+                  {extraEntries(detailRegistration).length > 0 ? (
+                    extraEntries(detailRegistration).map(([key, value]) => (
+                      <DetailRow key={key} label={customFieldLabel(key)}>{value}</DetailRow>
+                    ))
+                  ) : (
+                    <div className="py-6 text-sm text-muted-foreground">{t('reg.manage.noCustomFields')}</div>
+                  )}
+                </div>
+              </div>
+
+              {detailRegistration.status === 'pending' && (
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    className="gap-1.5 border-red-300 text-red-600 hover:bg-red-50"
+                    onClick={() => openRejectDialog([detailRegistration.id])}
+                    disabled={actionLoading}
+                  >
+                    <X size={14} />
+                    {t('reg.manage.reject')}
+                  </Button>
+                  <Button
+                    className="gap-1.5"
+                    onClick={() => handleApprove([detailRegistration.id])}
+                    disabled={actionLoading}
+                  >
+                    <Check size={14} />
+                    {t('reg.manage.approve')}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

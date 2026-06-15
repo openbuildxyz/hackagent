@@ -7,6 +7,7 @@ import { ArrowRight, ArrowUpRight, Trophy, Bot, Users, Copy, Check, Sun, Moon } 
 import { toast } from 'sonner'
 import { useLocale, useT, type Locale } from '@/lib/i18n'
 import { copyToClipboard } from '@/components/CopyButton'
+import { canCreateEvents, canUseReviewerTools, normalizeRoles } from '@/lib/permissions'
 
 const LIVE_EVENT_HREF = '/events/public/3cd04217-86e1-4431-9893-709be5998780'
 const SHOW_LIVE_CALLOUT = false
@@ -245,11 +246,11 @@ export default function LandingClient({ initialProjectsReviewed }: { initialProj
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         setLoggedIn(!!data?.loggedIn)
-        const role: string[] = Array.isArray(data?.role) ? data.role : []
-        if (role.includes('admin') || role.includes('organizer')) {
+        const role = normalizeRoles(data?.role)
+        if (canCreateEvents(role)) {
           setDashboardHref('/dashboard')
           setDashboardLabel('dashboard')
-        } else if (role.includes('reviewer')) {
+        } else if (canUseReviewerTools(role)) {
           setDashboardHref('/my-reviews')
           setDashboardLabel('reviews')
         } else {

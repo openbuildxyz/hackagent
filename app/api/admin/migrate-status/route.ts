@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUserWithRole } from '@/lib/session'
 
 // One-time migration: Status Machine v1.1
 // DELETE THIS FILE AFTER RUNNING
-export async function POST(req: NextRequest) {
+export async function POST() {
   const session = await getSessionUserWithRole()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!session.role?.includes('admin')) return NextResponse.json({ error: 'Forbidden: admin only' }, { status: 403 })

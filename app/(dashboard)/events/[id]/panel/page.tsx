@@ -5,10 +5,10 @@ import { useParams } from 'next/navigation'
 import { useT } from '@/lib/i18n'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { ArrowLeft, Trophy, Users, CheckCircle2, Clock, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Users, CheckCircle2, Clock, RefreshCw } from 'lucide-react'
 
 type ReviewerStatus = {
   user_id: string

@@ -11,6 +11,7 @@
     "test:banner-feedback": "node scripts/test-banner-feedback.mjs",
     "test:event-cover-rules": "node scripts/test-event-cover-rules.mjs",
     "test:ope210": "node scripts/test-ope210-upcoming-publish.mjs",
+    "test:role-workflows": "node scripts/test-role-workflows.mjs",
     "test:skill-md": "node scripts/test-skill-md.mjs",
     "test:review-progress": "node scripts/test-review-progress.mjs",
     "validate:open-source": "node scripts/validate-open-source.mjs"

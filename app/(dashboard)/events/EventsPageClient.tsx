@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Folder, ArrowRight, ExternalLink } from 'lucide-react'
+import { Plus, Folder, ArrowRight, ExternalLink, Bot, KeyRound, Send, Ticket } from 'lucide-react'
 import DeleteEventButton from '../DeleteEventButton'
 import { useT, type TranslationKey } from '@/lib/i18n'
 import EventCover from '@/components/EventCover'
@@ -61,14 +61,26 @@ const STATUS_LABEL_KEYS: Record<string, TranslationKey> = {
   cancelled: 'dashboard.status.cancelled',
 }
 
+const REG_STATUS_LABEL_KEYS: Record<string, TranslationKey> = {
+  pending: 'dashboard.registration.pending',
+  approved: 'dashboard.registration.approved',
+  rejected: 'dashboard.registration.rejected',
+}
+
 export default function EventsPageClient({ events, canManage }: { events: EventSummary[]; canManage: boolean }) {
   const t = useT()
   const title = canManage ? t('dashboard.title') : t('dashboard.viewerTitle')
   const subtitle = canManage ? t('dashboard.subtitle') : t('dashboard.viewerSubtitle')
+  const participationStats = {
+    total: events.length,
+    human: events.filter(event => event.participation?.human).length,
+    agent: events.reduce((sum, event) => sum + (event.participation?.agent_count ?? 0), 0),
+    approved: events.filter(event => event.participation?.registration_status === 'approved').length,
+  }
 
   return (
     <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold">{title}</h1>
           <p className="text-muted-foreground text-sm mt-1">{subtitle}</p>
@@ -82,6 +94,50 @@ export default function EventsPageClient({ events, canManage }: { events: EventS
           </Link>
         )}
       </div>
+
+      {!canManage && (
+        <div className="mb-6 space-y-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {[
+              [t('dashboard.viewerStat.events'), participationStats.total],
+              [t('dashboard.viewerStat.human'), participationStats.human],
+              [t('dashboard.viewerStat.agent'), participationStats.agent],
+              [t('dashboard.viewerStat.approved'), participationStats.approved],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-lg border border-token bg-bg px-3 py-2">
+                <div className="text-[11px] text-muted-foreground">{label}</div>
+                <div className="mt-1 text-lg font-semibold">{value}</div>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2 rounded-lg border border-token bg-bg p-3">
+            <Link href="/events/public">
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <Ticket size={14} />
+                {t('dashboard.browseEvents')}
+              </Button>
+            </Link>
+            <Link href="/my-agents">
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <Bot size={14} />
+                {t('nav.myAgents')}
+              </Button>
+            </Link>
+            <Link href="/api-keys">
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <KeyRound size={14} />
+                {t('nav.apiKeys')}
+              </Button>
+            </Link>
+            <Link href="/events/new">
+              <Button variant="secondary" size="sm" className="gap-1.5">
+                <Plus size={14} />
+                {t('dashboard.upgrade')}
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
 
       {events.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -147,7 +203,10 @@ export default function EventsPageClient({ events, canManage }: { events: EventS
                     <div className="flex flex-wrap gap-1.5 pt-1">
                       {event.participation.registration_status && (
                         <Badge variant="outline" className="text-xs">
-                          {t('dashboard.registrationStatus').replace('{status}', event.participation.registration_status)}
+                          {t('dashboard.registrationStatus').replace(
+                            '{status}',
+                            t(REG_STATUS_LABEL_KEYS[event.participation.registration_status] ?? 'dashboard.registration.unknown')
+                          )}
                         </Badge>
                       )}
                       {event.participation.human && (
@@ -182,8 +241,16 @@ export default function EventsPageClient({ events, canManage }: { events: EventS
                     ) : (
                       <Link href={`/events/public/${event.id}`} className="flex-1">
                         <Button variant="outline" size="sm" className="w-full gap-1.5 cursor-pointer">
-                          {t('pub.detail.viewResults')}
+                          {t('dashboard.viewEvent')}
                           <ExternalLink size={13} />
+                        </Button>
+                      </Link>
+                    )}
+                    {!canManage && event.participation?.registration_status === 'approved' && (
+                      <Link href={`/apply/${event.id}/submit`}>
+                        <Button variant="secondary" size="sm" className="gap-1.5">
+                          {t('dashboard.submit')}
+                          <Send size={13} />
                         </Button>
                       </Link>
                     )}

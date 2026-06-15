@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getSessionUser } from '@/lib/session'
 import { createServiceClient } from '@/lib/supabase-server'
+import { canCreateEvents, isPlatformAdmin, normalizeRoles } from '@/lib/permissions'
 import EventsPageClient, { type EventSummary } from '../events/EventsPageClient'
 
 // OPE-126: Force dynamic rendering — Vercel ISR can cache a no-session shell on cold start.
@@ -17,13 +18,9 @@ export default async function DashboardPage() {
     .select('role')
     .eq('id', session.userId)
     .single()
-  const roles: string[] = Array.isArray(userRow?.role)
-    ? userRow!.role
-    : userRow?.role
-      ? [userRow.role as string]
-      : ['viewer']
-  const canManage = roles.includes('admin') || roles.includes('organizer')
-  const isAdmin = roles.includes('admin')
+  const roles = normalizeRoles(userRow?.role)
+  const canManage = canCreateEvents(roles)
+  const isAdmin = isPlatformAdmin(roles)
 
   if (!canManage) {
     const { data: ownedAgents } = await db

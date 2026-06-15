@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase'
+import { isPlatformAdmin, normalizeRoles } from '@/lib/permissions'
 
 export async function getSessionUser() {
   const cookieStore = await cookies()
@@ -25,14 +26,10 @@ export async function getSessionUserWithRole(): Promise<
     .select('role')
     .eq('id', session.userId)
     .maybeSingle()
-  const role: string[] = Array.isArray(data?.role)
-    ? (data!.role as string[])
-    : data?.role
-      ? [String(data.role)]
-      : []
+  const role = normalizeRoles(data?.role)
   return {
     ...session,
     role,
-    isAdmin: role.includes('admin'),
+    isAdmin: isPlatformAdmin(role),
   }
 }

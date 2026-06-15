@@ -220,7 +220,6 @@ export async function GET(
 
   if (!projects) return NextResponse.json({ total: 0, completed: 0, running: 0, pending: 0, partial: 0, error: 0, ready: false })
 
-  const projectIds = projects.map(p => p.id)
   const { data: queues } = await db
     .from('analysis_queue')
     .select('project_id, status, sonar_enabled')

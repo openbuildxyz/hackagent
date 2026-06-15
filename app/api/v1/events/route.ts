@@ -3,7 +3,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { getAgentUser } from '@/lib/agentAuth'
 
 // GET /api/v1/events — 公开，返回 status != draft 的活动列表
-export async function GET(_request: NextRequest) {
+export async function GET() {
   const db = createServiceClient()
 
   const { data: events, error } = await db

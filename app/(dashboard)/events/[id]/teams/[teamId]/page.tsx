@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -75,10 +75,6 @@ export default function TeamDetailPage() {
   const [joinOpen, setJoinOpen] = useState(false)
   const [joinMessage, setJoinMessage] = useState('')
   const [joining, setJoining] = useState(false)
-  const [inviteOpen, setInviteOpen] = useState(false)
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviting, setInviting] = useState(false)
-
   // Edit dialog (leader only)
   const [editOpen, setEditOpen] = useState(false)
   const [editName, setEditName] = useState('')
@@ -103,7 +99,7 @@ export default function TeamDetailPage() {
   // Lock toggle
   const [togglingLock, setTogglingLock] = useState(false)
 
-  async function loadCurrentUser() {
+  const loadCurrentUser = useCallback(async () => {
     try {
       const res = await fetch('/api/me')
       if (res.ok) {
@@ -113,9 +109,9 @@ export default function TeamDetailPage() {
     } catch {
       // ignore
     }
-  }
+  }, [])
 
-  async function loadTeam() {
+  const loadTeam = useCallback(async () => {
     setLoading(true)
     try {
       const res = await fetch(`/api/teams/${teamId}`)
@@ -127,12 +123,12 @@ export default function TeamDetailPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [teamId, t])
 
   useEffect(() => {
     loadCurrentUser()
     loadTeam()
-  }, [teamId])
+  }, [loadCurrentUser, loadTeam])
 
   function openEdit() {
     if (!team) return
@@ -297,27 +293,6 @@ export default function TeamDetailPage() {
 
   const isLeader = currentUserId === team.leader_id
   const isMember = team.team_members.some(m => m.user_id === currentUserId)
-  const handleInvite = async () => {
-    if (!inviteEmail.trim()) return
-    setInviting(true)
-    try {
-      const res = await fetch(`/api/teams/${teamId}/invite`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: inviteEmail.trim() }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || '邀请失败')
-      toast.success('邀请已发送！')
-      setInviteEmail('')
-      setInviteOpen(false)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : '邀请失败')
-    } finally {
-      setInviting(false)
-    }
-  }
-
   const pendingRequests = team.team_join_requests.filter(r => r.status === 'pending')
   const isFull = team.team_members.length >= team.max_members
   const myRequest = team.team_join_requests.find(r => r.user_id === currentUserId)

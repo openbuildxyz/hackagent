@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { Sun, Moon, ArrowUpRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useT, useLocale, type Locale } from '@/lib/i18n'
+import { canCreateEvents, canUseReviewerTools, normalizeRoles } from '@/lib/permissions'
 
 export default function PublicNavbar() {
   const t = useT()
@@ -20,11 +21,11 @@ export default function PublicNavbar() {
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         setLoggedIn(!!data?.loggedIn)
-        const role: string[] = Array.isArray(data?.role) ? data.role : []
-        if (role.includes('admin') || role.includes('organizer')) {
+        const role = normalizeRoles(data?.role)
+        if (canCreateEvents(role)) {
           setDashboardHref('/dashboard')
           setDashboardLabel('dashboard')
-        } else if (role.includes('reviewer')) {
+        } else if (canUseReviewerTools(role)) {
           setDashboardHref('/my-reviews')
           setDashboardLabel('reviews')
         } else {
