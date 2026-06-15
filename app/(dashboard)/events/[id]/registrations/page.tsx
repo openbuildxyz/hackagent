@@ -1,11 +1,13 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -24,7 +26,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { toast } from 'sonner'
-import { ArrowLeft, Check, X, Loader2, Users } from 'lucide-react'
+import { ArrowLeft, Check, X, Loader2, Users, Search, Download } from 'lucide-react'
 import { useT } from '@/lib/i18n'
 import { formatDateShort } from '@/lib/format-date'
 
@@ -56,6 +58,14 @@ interface RegistrationField {
   default?: boolean
 }
 
+type StatusFilter = 'all' | Registration['status']
+type SourceFilter = 'all' | 'human' | 'agent'
+
+function csvCell(value: unknown) {
+  const text = String(value ?? '')
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
+}
+
 export default function RegistrationsPage() {
   const params = useParams()
   const id = params.id as string
@@ -71,6 +81,10 @@ export default function RegistrationsPage() {
   const [rejectTargetIds, setRejectTargetIds] = useState<string[]>([])
   const [rejectReason, setRejectReason] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+  const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [trackFilter, setTrackFilter] = useState('all')
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all')
 
   const fetchData = useCallback(async () => {
     try {
@@ -96,13 +110,91 @@ export default function RegistrationsPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  const trackName = (trackId: string | null) => {
+  const trackName = useCallback((trackId: string | null) => {
     if (!trackId) return null
     return tracks.find(tr => tr.id === trackId)?.name ?? trackId
+  }, [tracks])
+  const customFieldLabel = useCallback((key: string) => (
+    registrationFields.find(field => field.key === key)?.label ?? key
+  ), [registrationFields])
+  const extraEntries = useCallback((reg: Registration) => Object.entries(reg.extra_fields ?? {})
+    .filter(([, value]) => String(value ?? '').trim().length > 0), [])
+
+  useEffect(() => {
+    setSelected(new Set())
+  }, [query, statusFilter, trackFilter, sourceFilter])
+
+  const filteredRegistrations = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase()
+    return registrations.filter((reg) => {
+      if (statusFilter !== 'all' && reg.status !== statusFilter) return false
+      if (trackFilter !== 'all' && reg.track_id !== trackFilter) return false
+      if (sourceFilter === 'agent' && !reg.is_agent) return false
+      if (sourceFilter === 'human' && reg.is_agent) return false
+      if (!normalizedQuery) return true
+
+      const searchable = [
+        reg.team_name,
+        reg.users?.email,
+        reg.github_url,
+        reg.agent_id,
+        trackName(reg.track_id),
+        ...extraEntries(reg).flatMap(([key, value]) => [customFieldLabel(key), value]),
+      ]
+      return searchable.some(value => String(value ?? '').toLowerCase().includes(normalizedQuery))
+    })
+  }, [registrations, statusFilter, trackFilter, sourceFilter, query, trackName, extraEntries, customFieldLabel])
+
+  const stats = useMemo(() => ({
+    total: registrations.length,
+    pending: registrations.filter(reg => reg.status === 'pending').length,
+    approved: registrations.filter(reg => reg.status === 'approved').length,
+    rejected: registrations.filter(reg => reg.status === 'rejected').length,
+    agents: registrations.filter(reg => reg.is_agent).length,
+  }), [registrations])
+
+  const customExportKeys = useMemo(() => {
+    const configured = registrationFields.map(field => field.key)
+    const discovered = filteredRegistrations.flatMap(reg => Object.keys(reg.extra_fields ?? {}))
+    return Array.from(new Set([...configured, ...discovered]))
+  }, [filteredRegistrations, registrationFields])
+
+  const exportCsv = () => {
+    const headers = [
+      t('reg.manage.team'),
+      t('reg.manage.source'),
+      t('reg.manage.email'),
+      t('reg.manage.track'),
+      t('reg.manage.github'),
+      t('reg.manage.status'),
+      t('reg.manage.rejectReason'),
+      t('reg.manage.time'),
+      'agent_id',
+      ...customExportKeys.map(customFieldLabel),
+    ]
+    const rows = filteredRegistrations.map(reg => [
+      reg.team_name ?? '',
+      reg.is_agent ? t('reg.manage.sourceAgent') : t('reg.manage.sourceHuman'),
+      reg.users?.email ?? '',
+      trackName(reg.track_id) ?? '',
+      reg.github_url ?? '',
+      t(`reg.manage.status.${reg.status}`),
+      reg.reject_reason ?? '',
+      reg.submitted_at ?? '',
+      reg.agent_id ?? '',
+      ...customExportKeys.map(key => reg.extra_fields?.[key] ?? ''),
+    ])
+    const csv = [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\n')
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `registrations-${id}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
-  const customFieldLabel = (key: string) => registrationFields.find(field => field.key === key)?.label ?? key
-  const extraEntries = (reg: Registration) => Object.entries(reg.extra_fields ?? {})
-    .filter(([, value]) => String(value ?? '').trim().length > 0)
 
   const handleApprove = async (ids: string[]) => {
     setActionLoading(true)
@@ -155,7 +247,7 @@ export default function RegistrationsPage() {
   }
 
   const toggleAll = () => {
-    const pending = registrations.filter(r => r.status === 'pending').map(r => r.id)
+    const pending = filteredRegistrations.filter(r => r.status === 'pending').map(r => r.id)
     if (pending.every(id => selected.has(id))) {
       setSelected(new Set())
     } else {
@@ -163,7 +255,7 @@ export default function RegistrationsPage() {
     }
   }
 
-  const pendingIds = registrations.filter(r => r.status === 'pending').map(r => r.id)
+  const pendingIds = filteredRegistrations.filter(r => r.status === 'pending').map(r => r.id)
   const allPendingSelected = pendingIds.length > 0 && pendingIds.every(id => selected.has(id))
 
   const statusBadge = (status: Registration['status']) => {
@@ -192,6 +284,69 @@ export default function RegistrationsPage() {
             {t('reg.manage.title')}
           </h1>
         </div>
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={exportCsv} disabled={filteredRegistrations.length === 0}>
+          <Download size={14} />
+          {t('reg.manage.exportCsv')}
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {[
+          [t('reg.manage.statTotal'), stats.total],
+          [t('reg.manage.status.pending'), stats.pending],
+          [t('reg.manage.status.approved'), stats.approved],
+          [t('reg.manage.status.rejected'), stats.rejected],
+          [t('reg.manage.sourceAgent'), stats.agents],
+        ].map(([label, value]) => (
+          <div key={label} className="rounded-lg border border-token bg-bg px-3 py-2">
+            <div className="text-[11px] text-muted-foreground">{label}</div>
+            <div className="mt-1 text-lg font-semibold">{value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-lg border border-token bg-bg p-3 md:flex-row md:items-center">
+        <div className="relative md:flex-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder={t('reg.manage.searchPlaceholder')}
+            className="pl-8"
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={value => setStatusFilter(value as StatusFilter)}>
+          <SelectTrigger className="md:w-[140px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('reg.manage.filter.allStatus')}</SelectItem>
+            <SelectItem value="pending">{t('reg.manage.status.pending')}</SelectItem>
+            <SelectItem value="approved">{t('reg.manage.status.approved')}</SelectItem>
+            <SelectItem value="rejected">{t('reg.manage.status.rejected')}</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={trackFilter} onValueChange={setTrackFilter}>
+          <SelectTrigger className="md:w-[150px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('reg.manage.filter.allTracks')}</SelectItem>
+            {tracks.map(track => (
+              <SelectItem key={track.id} value={track.id}>{track.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={sourceFilter} onValueChange={value => setSourceFilter(value as SourceFilter)}>
+          <SelectTrigger className="md:w-[140px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('reg.manage.filter.allSources')}</SelectItem>
+            <SelectItem value="human">{t('reg.manage.sourceHuman')}</SelectItem>
+            <SelectItem value="agent">{t('reg.manage.sourceAgent')}</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Batch actions */}
@@ -225,6 +380,8 @@ export default function RegistrationsPage() {
 
       {registrations.length === 0 ? (
         <div className="text-center text-muted-foreground py-16">{t('reg.manage.noData')}</div>
+      ) : filteredRegistrations.length === 0 ? (
+        <div className="text-center text-muted-foreground py-16">{t('reg.manage.noMatches')}</div>
       ) : (
         <div className="border rounded-lg overflow-hidden">
           <Table>
@@ -249,7 +406,7 @@ export default function RegistrationsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {registrations.map(reg => (
+              {filteredRegistrations.map(reg => (
                 <TableRow key={reg.id} className={selected.has(reg.id) ? 'bg-blue-50/50' : ''}>
                   <TableCell>
                     {reg.status === 'pending' && (

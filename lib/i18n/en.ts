@@ -526,6 +526,13 @@ const en = {
   'reg.manage.track': 'Track',
   'reg.manage.github': 'GitHub',
   'reg.manage.customFields': 'Custom Fields',
+  'reg.manage.searchPlaceholder': 'Search team, email, GitHub, track, or custom fields',
+  'reg.manage.filter.allStatus': 'All statuses',
+  'reg.manage.filter.allTracks': 'All tracks',
+  'reg.manage.filter.allSources': 'All sources',
+  'reg.manage.statTotal': 'Total registrations',
+  'reg.manage.exportCsv': 'Export CSV',
+  'reg.manage.noMatches': 'No registrations match the current filters',
 
   // Landing page
   'landing.nav.features': 'Features',

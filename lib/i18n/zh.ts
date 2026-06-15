@@ -526,6 +526,13 @@ const zh = {
   'reg.manage.track': '赛道',
   'reg.manage.github': 'GitHub',
   'reg.manage.customFields': '自定义字段',
+  'reg.manage.searchPlaceholder': '搜索团队、邮箱、GitHub、赛道或自定义字段',
+  'reg.manage.filter.allStatus': '全部状态',
+  'reg.manage.filter.allTracks': '全部赛道',
+  'reg.manage.filter.allSources': '全部来源',
+  'reg.manage.statTotal': '总报名',
+  'reg.manage.exportCsv': '导出 CSV',
+  'reg.manage.noMatches': '没有符合筛选条件的报名',
 
   // Landing page
   'landing.nav.features': '功能',
