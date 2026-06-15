@@ -1181,7 +1181,7 @@ const en = {
   // Registrations page extras
   'reg.manage.backLabel': 'Back to event',
   'reg.manage.actions': 'Actions',
-  'reg.manage.loadFailed': 'Failed to load',
+  'reg.manage.loadFailed': 'Failed to load registrations',
 
   // Common — QA R12
   'common.back': 'Back',

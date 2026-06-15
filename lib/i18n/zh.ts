@@ -1181,7 +1181,7 @@ const zh = {
   // Registrations page extras
   'reg.manage.backLabel': '返回活动',
   'reg.manage.actions': '操作',
-  'reg.manage.loadFailed': '加载失败',
+  'reg.manage.loadFailed': '加载报名失败',
 
   // Common — QA R12
   'common.back': '返回',

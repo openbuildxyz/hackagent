@@ -110,11 +110,11 @@ export default function RegistrationsPage() {
         setRegistrationFields(Array.isArray(fields) ? fields.filter((field: RegistrationField) => !field.default) : [])
       }
     } catch {
-      toast.error('加载失败')
+      toast.error(t('reg.manage.loadFailed'))
     } finally {
       setLoading(false)
     }
-  }, [id, router])
+  }, [id, router, t])
 
   useEffect(() => { fetchData() }, [fetchData])
 
