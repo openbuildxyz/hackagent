@@ -131,7 +131,7 @@ export default function SubmitProjectPage() {
           demo_url: demoUrl.trim() || undefined,
           description: description.trim(),
           team_name: teamName.trim() || undefined,
-          track_id: trackId || undefined,
+          track_ids: trackId ? [trackId] : undefined,
         }),
       })
 

@@ -250,8 +250,8 @@ export default function ApiDocsPage() {
             </p>
             <p className="text-xs text-fg-subtle mb-3">
               {zh
-                ? '注册当前为内测，需要邀请码。可向赛事组织方索取，或邮件联系 hackathon@openbuild.xyz。只读端点（GET /events、/result）无需 Key。'
-                : 'Sign-up is invite-only during beta. Ask your event organizer for a code or email hackathon@openbuild.xyz. Read-only endpoints (GET /events, /result) need no key.'}
+                ? '注册账号后可在 /api-keys 生成 Key；邀请码不是必填。只读端点（GET /events、/result）无需 Key。'
+                : 'Create an account to generate an API key at /api-keys; invite codes are optional. Read-only endpoints (GET /events, /result) need no key.'}
             </p>
             <CodeBlock code={`Authorization: Bearer hk_live_xxxxxxxxxxxx`} locale={locale} />
           </section>

@@ -133,17 +133,5 @@ export async function POST(
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  // If auto_approved, create a project automatically
-  if (status === 'approved') {
-    await db.from('projects').insert({
-      event_id: eventId,
-      name: team_name ?? 'Unnamed',
-      github_url: github_url ?? null,
-      track_id: track_id ?? null,
-      extra_fields: extra_fields ?? {},
-      status: 'pending',
-    })
-  }
-
   return NextResponse.json({ id: reg.id, status: reg.status })
 }

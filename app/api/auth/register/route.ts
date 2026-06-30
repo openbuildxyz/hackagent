@@ -54,27 +54,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '密码至少 8 位' }, { status: 400 })
   }
 
-  // Invite code — required and non-empty
+  // Invite codes are optional. If a code is provided, keep the old validation
+  // and redemption behavior so invite links/campaigns still work.
   const trimmedCode = (invite_code ?? '').trim()
-  if (!trimmedCode) {
-    return NextResponse.json({ error: '邀请码必填' }, { status: 400 })
-  }
   // ────────────────────────────────────────────────────────
 
   const db = createServiceClient()
 
-  // Validate invite code
-  const { data: codeRow } = await db
-    .from('invite_codes')
-    .select('id, used_by')
-    .eq('code', trimmedCode)
-    .single()
+  let codeRow: { id: string; used_by: string | null } | null = null
+  if (trimmedCode) {
+    // Validate invite code
+    const { data } = await db
+      .from('invite_codes')
+      .select('id, used_by')
+      .eq('code', trimmedCode)
+      .single()
 
-  if (!codeRow) {
-    return NextResponse.json({ error: '邀请码无效' }, { status: 400 })
-  }
-  if (codeRow.used_by) {
-    return NextResponse.json({ error: '邀请码已被使用' }, { status: 400 })
+    if (!data) {
+      return NextResponse.json({ error: '邀请码无效' }, { status: 400 })
+    }
+    if (data.used_by) {
+      return NextResponse.json({ error: '邀请码已被使用' }, { status: 400 })
+    }
+    codeRow = data
   }
 
   // Check email not already registered
@@ -109,11 +111,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '注册失败，请重试' }, { status: 500 })
   }
 
-  // Mark invite code as used
-  await db
-    .from('invite_codes')
-    .update({ used_by: newUser.id, used_at: new Date().toISOString() })
-    .eq('id', codeRow.id)
+  // Mark invite code as used when one was supplied.
+  if (codeRow) {
+    await db
+      .from('invite_codes')
+      .update({ used_by: newUser.id, used_at: new Date().toISOString() })
+      .eq('id', codeRow.id)
+  }
 
   // Send verification email
   await sendVerificationEmail(normalizedEmail, verifyToken)

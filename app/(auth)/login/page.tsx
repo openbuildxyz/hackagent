@@ -143,7 +143,6 @@ function LoginForm() {
                   placeholder={t('auth.inviteCodePh')}
                   value={inviteCode}
                   onChange={e => setInviteCode(e.target.value)}
-                  required
                   autoComplete="off"
                 />
                 <p className="text-xs text-muted-foreground">{t('auth.inviteCodeHint')}</p>

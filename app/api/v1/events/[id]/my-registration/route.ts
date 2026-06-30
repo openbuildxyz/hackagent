@@ -17,7 +17,7 @@ export async function GET(
 
   const { data: reg, error } = await db
     .from('registrations')
-    .select('id, status, team_name, github_url, extra_fields, submitted_at, rejection_reason')
+    .select('*')
     .eq('event_id', eventId)
     .eq('user_id', user.userId)
     .maybeSingle()
@@ -39,8 +39,9 @@ export async function GET(
     created_at: reg.submitted_at,
   }
 
-  if (reg.rejection_reason) {
-    result.rejection_reason = reg.rejection_reason
+  const rejectionReason = reg.rejection_reason ?? reg.reject_reason ?? null
+  if (rejectionReason) {
+    result.rejection_reason = rejectionReason
   }
 
   return NextResponse.json(result)

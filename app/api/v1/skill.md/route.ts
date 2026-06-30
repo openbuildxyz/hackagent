@@ -49,7 +49,7 @@ All write endpoints require:
 Authorization: Bearer $HACKAGENT_API_KEY
 \`\`\`
 
-Sign-up is invite-only during beta. Request a code from an event organizer or email hello@hackagent.dev.
+Sign-up is open. Invite codes are optional and only used for specific campaigns or beta access.
 
 ## Error Codes
 
