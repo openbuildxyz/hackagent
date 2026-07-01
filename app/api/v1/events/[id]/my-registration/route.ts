@@ -40,6 +40,13 @@ export async function GET(
   }
 
   const rejectionReason = reg.rejection_reason ?? reg.reject_reason ?? null
+  const extraFields = reg.extra_fields && typeof reg.extra_fields === 'object' && !Array.isArray(reg.extra_fields)
+    ? reg.extra_fields as Record<string, unknown>
+    : {}
+  const trackId = reg.track_id ?? extraFields.track_id ?? null
+  if (trackId) {
+    result.track_id = trackId
+  }
   if (rejectionReason) {
     result.rejection_reason = rejectionReason
   }

@@ -2,6 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUserWithRole } from '@/lib/session'
 
+function normalizeExtraFields(extraFields: unknown, trackId?: unknown): Record<string, unknown> {
+  const normalized = extraFields && typeof extraFields === 'object' && !Array.isArray(extraFields)
+    ? { ...(extraFields as Record<string, unknown>) }
+    : {}
+  if (typeof trackId === 'string' && trackId.trim()) {
+    normalized.track_id = trackId.trim()
+  }
+  return normalized
+}
+
+function withSyntheticTrackId<T extends { extra_fields?: unknown; track_id?: unknown }>(row: T): T & { track_id: unknown } {
+  const extraFields = row.extra_fields && typeof row.extra_fields === 'object' && !Array.isArray(row.extra_fields)
+    ? row.extra_fields as Record<string, unknown>
+    : {}
+  return {
+    ...row,
+    track_id: row.track_id ?? extraFields.track_id ?? null,
+  }
+}
+
 // GET — event owner or admin: list all registrations for an event
 export async function GET(
   _request: NextRequest,
@@ -49,7 +69,7 @@ export async function GET(
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(registrations)
+  return NextResponse.json((registrations ?? []).map(withSyntheticTrackId))
 }
 
 // POST — authenticated user submits registration
@@ -114,6 +134,7 @@ export async function POST(
   const { team_name, github_url, track_id, extra_fields } = body
 
   const status = config.auto_approve ? 'approved' : 'pending'
+  const normalizedExtraFields = normalizeExtraFields(extra_fields, track_id)
 
   const { data: reg, error } = await db
     .from('registrations')
@@ -122,8 +143,7 @@ export async function POST(
       user_id: session.userId,
       team_name: team_name ?? null,
       github_url: github_url ?? null,
-      track_id: track_id ?? null,
-      extra_fields: extra_fields ?? {},
+      extra_fields: normalizedExtraFields,
       status,
     })
     .select('id, status')

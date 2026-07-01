@@ -32,9 +32,14 @@ export async function GET(
     .maybeSingle()
 
   const rejectionReason = reg.rejection_reason ?? reg.reject_reason ?? null
+  const extraFields = reg.extra_fields && typeof reg.extra_fields === 'object' && !Array.isArray(reg.extra_fields)
+    ? reg.extra_fields as Record<string, unknown>
+    : {}
+  const trackId = reg.track_id ?? extraFields.track_id ?? null
 
   return NextResponse.json({
     ...reg,
+    track_id: trackId,
     rejection_reason: rejectionReason,
     reject_reason: rejectionReason,
     created_at: reg.submitted_at,
