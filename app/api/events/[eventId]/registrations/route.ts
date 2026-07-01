@@ -6,10 +6,13 @@ function normalizeExtraFields(extraFields: unknown, trackId?: unknown): Record<s
   const normalized = extraFields && typeof extraFields === 'object' && !Array.isArray(extraFields)
     ? { ...(extraFields as Record<string, unknown>) }
     : {}
-  if (typeof trackId === 'string' && trackId.trim()) {
-    normalized.track_id = trackId.trim()
-  }
+  const normalizedTrackId = normalizeTrackId(trackId)
+  if (normalizedTrackId) normalized.track_id = normalizedTrackId
   return normalized
+}
+
+function normalizeTrackId(trackId?: unknown): string | null {
+  return typeof trackId === 'string' && trackId.trim() ? trackId.trim() : null
 }
 
 function withSyntheticTrackId<T extends { extra_fields?: unknown; track_id?: unknown }>(row: T): T & { track_id: unknown } {
@@ -20,6 +23,14 @@ function withSyntheticTrackId<T extends { extra_fields?: unknown; track_id?: unk
     ...row,
     track_id: row.track_id ?? extraFields.track_id ?? null,
   }
+}
+
+function isMissingTrackColumnError(error: { message?: string; code?: string } | null): boolean {
+  if (!error?.message) return false
+  return error.message.includes('track_id') && (
+    error.message.includes('schema cache') ||
+    error.message.includes('column')
+  )
 }
 
 // GET — event owner or admin: list all registrations for an event
@@ -134,23 +145,47 @@ export async function POST(
   const { team_name, github_url, track_id, extra_fields } = body
 
   const status = config.auto_approve ? 'approved' : 'pending'
+  const normalizedTrackId = normalizeTrackId(track_id)
   const normalizedExtraFields = normalizeExtraFields(extra_fields, track_id)
 
-  const { data: reg, error } = await db
+  const insertPayload = {
+    event_id: eventId,
+    user_id: session.userId,
+    team_name: team_name ?? null,
+    github_url: github_url ?? null,
+    track_id: normalizedTrackId,
+    extra_fields: normalizedExtraFields,
+    status,
+  }
+
+  let { data: reg, error } = await db
     .from('registrations')
-    .insert({
-      event_id: eventId,
-      user_id: session.userId,
-      team_name: team_name ?? null,
-      github_url: github_url ?? null,
-      extra_fields: normalizedExtraFields,
-      status,
-    })
+    .insert(insertPayload)
     .select('id, status')
     .single()
 
+  if (isMissingTrackColumnError(error)) {
+    const fallback = await db
+      .from('registrations')
+      .insert({
+        event_id: insertPayload.event_id,
+        user_id: insertPayload.user_id,
+        team_name: insertPayload.team_name,
+        github_url: insertPayload.github_url,
+        extra_fields: insertPayload.extra_fields,
+        status: insertPayload.status,
+      })
+      .select('id, status')
+      .single()
+    reg = fallback.data
+    error = fallback.error
+  }
+
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+  if (!reg) {
+    return NextResponse.json({ error: 'Registration failed' }, { status: 500 })
   }
 
   return NextResponse.json({ id: reg.id, status: reg.status })

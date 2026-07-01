@@ -26,8 +26,8 @@ assert.match(loginPage, /handleResendVerification/, 'login page exposes a verifi
 
 const humanRegistration = read('app/api/events/[eventId]/registrations/route.ts')
 assert.doesNotMatch(humanRegistration, /from\('projects'\)\.insert/, 'human pre-registration does not create placeholder projects')
-assert.doesNotMatch(humanRegistration, /\n\s*track_id:\s*track_id/, 'human registration does not write a missing registrations.track_id column')
-assert.match(humanRegistration, /normalized\.track_id/, 'human registration stores selected track in extra_fields')
+assert.match(humanRegistration, /track_id:\s*normalizedTrackId/, 'human registration writes selected track to registrations.track_id')
+assert.match(humanRegistration, /normalized\.track_id/, 'human registration also keeps selected track in extra_fields for compatibility')
 
 const approvalRoute = read('app/api/events/[eventId]/registrations/[regId]/route.ts')
 assert.doesNotMatch(approvalRoute, /from\('projects'\)\.insert/, 'approving a pre-registration does not create placeholder projects')
