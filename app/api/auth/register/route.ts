@@ -14,6 +14,10 @@ const IP_BUCKET = 'auth-register-ip'
 const IP_LIMIT = 5
 const WINDOW_SEC = 3600
 
+function domainOf(email: string) {
+  return email.includes('@') ? email.split('@').pop()?.toLowerCase() ?? 'unknown' : 'unknown'
+}
+
 export async function POST(request: NextRequest) {
   const ipRl = await rateLimit({
     bucket: IP_BUCKET,
@@ -119,8 +123,21 @@ export async function POST(request: NextRequest) {
       .eq('id', codeRow.id)
   }
 
-  // Send verification email
-  await sendVerificationEmail(normalizedEmail, verifyToken)
+  // Send verification email. If Mailgun fails after the user row was created,
+  // keep the account and surface a recoverable state instead of trapping the
+  // user behind "email already registered" with no resend path.
+  try {
+    await sendVerificationEmail(normalizedEmail, verifyToken)
+  } catch (error) {
+    console.error('[auth.register] verification mail failed', {
+      recipient_domain: domainOf(normalizedEmail),
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return NextResponse.json(
+      { success: true, mail_failed: true, message: '账号已创建，但验证邮件发送失败。请稍后在登录页重发验证邮件。' },
+      { status: 202 }
+    )
+  }
 
   return NextResponse.json({ success: true, message: '验证邮件已发送' })
 }

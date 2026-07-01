@@ -1,7 +1,12 @@
 const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN || 'build.openbuild.xyz'
 const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY
-const FROM = process.env.MAIL_FROM || `claw@${MAILGUN_DOMAIN}`
+const FROM = process.env.MAIL_FROM || `HackAgent <no-reply@${MAILGUN_DOMAIN}>`
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://hackathon.xyz'
+
+type MailOptions = {
+  text?: string
+  tag?: string
+}
 
 function requireMailgunApiKey() {
   if (!MAILGUN_API_KEY) {
@@ -10,13 +15,19 @@ function requireMailgunApiKey() {
   return MAILGUN_API_KEY
 }
 
-async function sendMail(to: string, subject: string, html: string) {
+function recipientDomain(email: string) {
+  return email.includes('@') ? email.split('@').pop()?.toLowerCase() ?? 'unknown' : 'unknown'
+}
+
+async function sendMail(to: string, subject: string, html: string, options: MailOptions = {}) {
   const apiKey = requireMailgunApiKey()
   const form = new URLSearchParams()
   form.append('from', FROM)
   form.append('to', to)
   form.append('subject', subject)
   form.append('html', html)
+  if (options.text) form.append('text', options.text)
+  if (options.tag) form.append('o:tag', options.tag)
 
   const response = await fetch(`https://api.mailgun.net/v3/${MAILGUN_DOMAIN}/messages`, {
     method: 'POST',
@@ -31,6 +42,14 @@ async function sendMail(to: string, subject: string, html: string) {
     const text = await response.text()
     throw new Error(`Mailgun error: ${response.status} ${text}`)
   }
+
+  const data = await response.json().catch(() => ({})) as { id?: string; message?: string }
+  console.info('[mail] queued', {
+    tag: options.tag ?? 'untagged',
+    recipient_domain: recipientDomain(to),
+    id: data.id ?? null,
+  })
+  return data
 }
 
 export async function sendVerificationEmail(email: string, token: string) {
@@ -45,7 +64,11 @@ export async function sendVerificationEmail(email: string, token: string) {
       <a href="${link}" style="display: inline-block; background: #4f46e5; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 16px 0;">验证邮箱</a>
       <p style="color: #666; font-size: 13px;">链接有效期 24 小时。如果您未注册 HackAgent，请忽略此邮件。</p>
     </div>
-    `
+    `,
+    {
+      tag: 'hackagent-verification',
+      text: `欢迎使用 HackAgent\n\n请打开以下链接验证您的邮箱地址：\n${link}\n\n链接有效期 24 小时。如果您未注册 HackAgent，请忽略此邮件。`,
+    }
   )
 }
 
@@ -61,7 +84,11 @@ export async function sendPasswordResetEmail(email: string, token: string) {
       <a href="${link}" style="display: inline-block; background: #4f46e5; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 16px 0;">重置密码</a>
       <p style="color: #666; font-size: 13px;">链接有效期 1 小时。如果您未申请重置密码，请忽略此邮件。</p>
     </div>
-    `
+    `,
+    {
+      tag: 'hackagent-password-reset',
+      text: `重置 HackAgent 密码\n\n请打开以下链接设置新密码：\n${link}\n\n链接有效期 1 小时。如果您未申请重置密码，请忽略此邮件。`,
+    }
   )
 }
 
@@ -85,7 +112,11 @@ export async function sendReviewerInviteEmail(
       <p style="color: #666; font-size: 13px;">链接有效期 7 天。如果您已有账号，登录后将自动加入该活动评审。</p>
       <p style="color: #aaa; font-size: 12px;">如果您不认识发件人，请忽略此邮件。</p>
     </div>
-    `
+    `,
+    {
+      tag: 'hackagent-reviewer-invite',
+      text: `${inviterEmail} 邀请您参与 HackAgent 黑客松评审：${eventName}\n\n接受邀请：\n${link}\n\n链接有效期 7 天。如果您已有账号，登录后将自动加入该活动评审。`,
+    }
   )
 }
 
@@ -107,7 +138,11 @@ export async function sendReviewerNotifyEmail(
       <a href="${BASE_URL}${reviewUrl}" style="display: inline-block; background: #4f46e5; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 16px 0;">进入评审页面</a>
       <p style="color: #aaa; font-size: 12px;">如果您不认识发件人，请忽略此邮件。</p>
     </div>
-    `
+    `,
+    {
+      tag: 'hackagent-reviewer-notify',
+      text: `${inviterEmail} 邀请您参与 HackAgent 黑客松评审：${eventName}\n\n进入评审页面：\n${BASE_URL}${reviewUrl}\n\n如果您不认识发件人，请忽略此邮件。`,
+    }
   )
 }
 
@@ -122,7 +157,11 @@ export async function sendEventCancelledEmail(email: string, eventName: string, 
       ${reason ? `<p>取消原因：${reason}</p>` : ''}
       <p style="color: #666; font-size: 13px;">如有疑问，请联系活动主办方。</p>
     </div>
-    `
+    `,
+    {
+      tag: 'hackagent-event-cancelled',
+      text: `HackAgent 活动已取消：${eventName}\n\n${reason ? `取消原因：${reason}\n\n` : ''}如有疑问，请联系活动主办方。`,
+    }
   )
 }
 
@@ -139,6 +178,10 @@ export async function sendWelcomeEmail(email: string) {
       </p>
       <p style="color: #666; font-size: 13px;">或复制以下链接到浏览器：${BASE_URL}/login</p>
     </div>
-    `
+    `,
+    {
+      tag: 'hackagent-welcome',
+      text: `邮箱验证成功！\n\n您的 HackAgent 账号已激活，初始赠送 200 积分。\n\n登录：${BASE_URL}/login`,
+    }
   )
 }

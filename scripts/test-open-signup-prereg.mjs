@@ -7,6 +7,11 @@ const authRegister = read('app/api/auth/register/route.ts')
 assert.doesNotMatch(authRegister, /邀请码必填/, 'account registration no longer requires invite codes')
 assert.match(authRegister, /if \(trimmedCode\)/, 'provided invite codes are still validated')
 assert.match(authRegister, /if \(codeRow\)/, 'provided invite codes are still marked used')
+assert.match(authRegister, /mail_failed/, 'registration exposes a recoverable state if verification email fails after user creation')
+
+const resendVerification = read('app/api/auth/resend-verification/route.ts')
+assert.match(resendVerification, /auth-resend-verification-email/, 'verification resend is rate-limited by email')
+assert.match(resendVerification, /sendVerificationEmail/, 'verification resend sends a verification email')
 
 const loginPage = read('app/(auth)/login/page.tsx')
 const inviteIdIndex = loginPage.indexOf('id="invite-code"')
@@ -17,6 +22,7 @@ const inviteInput = inviteInputStart >= 0 && inviteInputEnd >= 0
   : ''
 assert.ok(inviteInput, 'register form still exposes optional invite code input')
 assert.doesNotMatch(inviteInput, /\srequired\b/, 'invite code input is optional in the UI')
+assert.match(loginPage, /handleResendVerification/, 'login page exposes a verification-email resend action')
 
 const humanRegistration = read('app/api/events/[eventId]/registrations/route.ts')
 assert.doesNotMatch(humanRegistration, /from\('projects'\)\.insert/, 'human pre-registration does not create placeholder projects')
@@ -45,5 +51,9 @@ assert.match(en, /'reg\.manage\.approveSuccess': 'Approved'/, 'en approval copy 
 
 const skillMd = read('app/api/v1/skill.md/route.ts')
 assert.doesNotMatch(skillMd, /invite-only/i, 'agent skill docs no longer claim invite-only signup')
+
+const mail = read('lib/mail.ts')
+assert.match(mail, /o:tag/, 'Mailgun messages include tags for diagnostics')
+assert.match(mail, /form\.append\('text'/, 'Mailgun messages include a plain-text part')
 
 console.log('open signup and pre-registration checks passed')

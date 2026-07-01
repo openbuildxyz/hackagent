@@ -21,6 +21,8 @@ function LoginForm() {
   const [password, setPassword] = useState('')
   const [inviteCode, setInviteCode] = useState('')
   const [loading, setLoading] = useState(false)
+  const [resendingVerification, setResendingVerification] = useState(false)
+  const [showResendVerification, setShowResendVerification] = useState(false)
 
   const verified = searchParams.get('verified') === '1'
   const error = searchParams.get('error')
@@ -39,6 +41,7 @@ function LoginForm() {
         })
         const data = await res.json()
         if (!res.ok) {
+          if (data.error === 'EMAIL_NOT_VERIFIED') setShowResendVerification(true)
           // Translate server error codes (e.g. INVALID_CREDENTIALS) via i18n
           const key = data.error ? `auth.err.${data.error}` : ''
           const translated = key ? t(key as TranslationKey) : ''
@@ -58,12 +61,35 @@ function LoginForm() {
         const redirectTo = searchParams.get('redirect')
         if (redirectTo) localStorage.setItem('hackagent-post-verify-redirect', redirectTo)
         toast.success(data.message || t('auth.register.verifyEmailSent'))
+        setShowResendVerification(true)
         setMode('login')
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('auth.err.opFailed'))
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleResendVerification = async () => {
+    if (!email.trim()) {
+      toast.error(t('auth.resend.needEmail'))
+      return
+    }
+    setResendingVerification(true)
+    try {
+      const res = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || t('auth.resend.failed'))
+      toast.success(t('auth.resend.sent'))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('auth.resend.failed'))
+    } finally {
+      setResendingVerification(false)
     }
   }
 
@@ -154,10 +180,22 @@ function LoginForm() {
             </Button>
 
             {mode === 'login' && (
-              <div className="text-center">
+              <div className="text-center space-y-2">
                 <a href="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4">
                   {t('auth.forgotLink')}
                 </a>
+                {showResendVerification && (
+                  <div>
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 disabled:opacity-60"
+                      onClick={handleResendVerification}
+                      disabled={resendingVerification}
+                    >
+                      {resendingVerification ? t('auth.resend.sending') : t('auth.resend.link')}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </form>
