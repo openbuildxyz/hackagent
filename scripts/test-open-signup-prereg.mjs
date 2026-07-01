@@ -28,10 +28,20 @@ assert.doesNotMatch(approvalRoute, /analysis_queue/, 'approving a pre-registrati
 const submitPage = read('app/apply/[eventId]/submit/page.tsx')
 assert.match(submitPage, /track_ids:\s*trackId\s*\?\s*\[trackId\]/, 'project submission preserves selected track as track_ids')
 
+const publicDetail = read('app/(public)/events/public/[eventId]/EventDetailClient.tsx')
+assert.doesNotMatch(publicDetail, /<EventRegistrationForm\b/, 'public event detail does not embed the registration form')
+assert.match(publicDetail, /href=\{applyHref\}/, 'public event detail sends applicants to the dedicated apply page')
+assert.match(publicDetail, /<EventStatusStepper status=\{event\.status\} hideDraft/, 'public event progress hides draft state')
+
+const registrationForm = read('components/EventRegistrationForm.tsx')
+assert.doesNotMatch(registrationForm, /fields\.length.*报名字段|registration \$\{fields\.length === 1 \? 'field' : 'fields'\}/s, 'registration form does not show raw field counts')
+
 const zh = read('lib/i18n/zh.ts')
 const en = read('lib/i18n/en.ts')
 assert.match(zh, /没有邀请码也可以直接注册/, 'zh copy explains open signup')
 assert.match(en, /sign up without an invite code/i, 'en copy explains open signup')
+assert.match(zh, /'reg\.manage\.approveSuccess': '已通过'/, 'zh approval copy no longer says project was created')
+assert.match(en, /'reg\.manage\.approveSuccess': 'Approved'/, 'en approval copy no longer says project was created')
 
 const skillMd = read('app/api/v1/skill.md/route.ts')
 assert.doesNotMatch(skillMd, /invite-only/i, 'agent skill docs no longer claim invite-only signup')

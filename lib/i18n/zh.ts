@@ -522,7 +522,7 @@ const zh = {
   'reg.manage.rejectPlaceholder': '请填写拒绝理由（可选）',
   'reg.manage.rejectConfirm': '确认拒绝',
   'reg.manage.rejecting': '提交中...',
-  'reg.manage.approveSuccess': '已通过并创建项目',
+  'reg.manage.approveSuccess': '已通过',
   'reg.manage.rejectSuccess': '已拒绝',
   'reg.manage.noData': '暂无报名',
   'reg.manage.selected': '已选 {n} 条',

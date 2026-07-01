@@ -10,20 +10,14 @@ const STEPS: Array<{ key: string; label: TranslationKey }> = [
   { key: 'done', label: 'event.status.done' },
 ]
 
-const STEP_INDEX: Record<string, number> = {
-  draft: 0,
-  recruiting: 1,
-  hacking: 2,
-  judging: 3,
-  done: 4,
-}
-
 export default function EventStatusStepper({
   status,
   className = '',
+  hideDraft = false,
 }: {
   status: string
   className?: string
+  hideDraft?: boolean
 }) {
   const t = useT()
 
@@ -47,14 +41,15 @@ export default function EventStatusStepper({
     )
   }
 
-  const currentIdx = STEP_INDEX[status] ?? -1
+  const steps = hideDraft ? STEPS.filter(step => step.key !== 'draft') : STEPS
+  const currentIdx = steps.findIndex(step => step.key === status)
 
   return (
     <div className={`flex items-start ${className}`}>
-      {STEPS.map((step, idx) => {
+      {steps.map((step, idx) => {
         const done = idx < currentIdx
         const active = idx === currentIdx
-        const isLast = idx === STEPS.length - 1
+        const isLast = idx === steps.length - 1
 
         const circleStyle: React.CSSProperties = active
           ? {

@@ -10,7 +10,6 @@ import { formatDate as formatDeterministic } from '@/lib/format-date'
 import PublicNavbar from '@/components/PublicNavbar'
 import EventStatusStepper from '@/components/EventStatusStepper'
 import EventCover from '@/components/EventCover'
-import EventRegistrationForm, { type CustomField } from '@/components/EventRegistrationForm'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
@@ -31,6 +30,15 @@ type PublicVote = {
   vote_limit?: number
   ends_at?: string
   show_realtime_count?: boolean
+}
+
+type CustomField = {
+  key: string
+  label: string
+  type: 'text' | 'textarea' | 'url' | 'select' | 'multiselect'
+  required: boolean
+  default?: boolean
+  options?: string[]
 }
 
 export type EventDetail = {
@@ -95,7 +103,6 @@ export default function EventDetailClient({ event }: { event: EventDetail }) {
   const [loggedIn, setLoggedIn] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
   const [registered, setRegistered] = useState(false)
-  const zh = locale === 'zh'
 
   function statusInfo(status: string) {
     switch (status) {
@@ -129,9 +136,7 @@ export default function EventDetailClient({ event }: { event: EventDetail }) {
 
   const { text: statusText, color: statusColor } = statusInfo(event.status)
 
-  const scrollToRegistration = () => {
-    document.getElementById('registration')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
+  const applyHref = `/apply/${event.id}`
 
   useEffect(() => {
     let cancelled = false
@@ -228,7 +233,7 @@ export default function EventDetailClient({ event }: { event: EventDetail }) {
         )}
 
         {event.status !== 'draft' && (
-          <EventStatusStepper status={event.status} className="mb-8" />
+          <EventStatusStepper status={event.status} hideDraft className="mb-8" />
         )}
 
         <div className="grid md:grid-cols-3 gap-8">
@@ -238,50 +243,6 @@ export default function EventDetailClient({ event }: { event: EventDetail }) {
                 text={event.description}
                 className="prose prose-sm dark:prose-invert prose-p:text-fg prose-li:text-fg prose-headings:text-fg prose-strong:text-fg max-w-none mb-8"
               />
-            )}
-
-            {authChecked && isRecruiting && (
-              <section id="registration" className="scroll-mt-24 mb-8 rounded-xl border border-token bg-surface-1 p-5">
-                <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-2">
-                    <Badge variant="secondary" className="w-fit">
-                      {zh ? '报名入口' : 'Registration'}
-                    </Badge>
-                    <div>
-                      <h2 className="text-lg font-semibold text-fg">
-                        {zh ? '完成活动报名' : 'Apply for this event'}
-                      </h2>
-                      <p className="mt-1 text-sm leading-relaxed text-fg-muted">
-                        {zh
-                          ? '确认活动信息后，直接填写团队与项目信息完成报名。提交后可在个人活动中查看审核状态。'
-                          : 'Review the event details, then complete registration here with your team and project information.'}
-                      </p>
-                    </div>
-                    {event.registration_deadline && (
-                      <div className="inline-flex items-center gap-2 rounded-md border border-token bg-bg px-3 py-2 text-xs text-fg-muted">
-                        <Calendar size={14} className="text-fg-subtle" />
-                        <span>{t('pub.detail.regDeadline')}: {formatDate(event.registration_deadline)}</span>
-                      </div>
-                    )}
-                  </div>
-                  <Button className="w-full gap-1.5 sm:w-auto" onClick={scrollToRegistration}>
-                    {t('pub.apply')}
-                    <ArrowRight size={14} />
-                  </Button>
-                </div>
-                <EventRegistrationForm
-                  eventConfig={{
-                    id: event.id,
-                    name: event.name,
-                    tracks: event.tracks ?? null,
-                    registration_deadline: event.registration_deadline ?? null,
-                    registration_config: event.registration_config ?? null,
-                  }}
-                  redirectPath={`/events/public/${event.id}#registration`}
-                  mode="embedded"
-                  onRegisteredChange={setRegistered}
-                />
-              </section>
             )}
 
             {event.tracks && event.tracks.length > 0 && (
@@ -497,12 +458,14 @@ export default function EventDetailClient({ event }: { event: EventDetail }) {
                     </Link>
                   ) : isRecruiting && isRegOpen ? (
                     loggedIn ? (
-                      <Button className="w-full gap-1.5" onClick={scrollToRegistration}>
-                        {t('pub.apply')}
-                        <ArrowRight size={14} />
-                      </Button>
+                      <Link href={applyHref}>
+                        <Button className="w-full gap-1.5">
+                          {t('pub.apply')}
+                          <ArrowRight size={14} />
+                        </Button>
+                      </Link>
                     ) : (
-                      <Link href={`/login?redirect=${encodeURIComponent(`/events/public/${event.id}#registration`)}`}>
+                      <Link href={`/login?redirect=${encodeURIComponent(applyHref)}`}>
                         <Button className="w-full">{t('pub.detail.signInToApply')}</Button>
                       </Link>
                     )

@@ -7,7 +7,7 @@ import { ArrowRight, CheckCircle2, Clock, Loader2, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -341,11 +341,6 @@ export default function EventRegistrationForm({
         <Card className="border-token">
           <CardHeader>
             <CardTitle className="text-xl">{t('reg.applyBtn')}</CardTitle>
-            <CardDescription>
-              {zh
-                ? `${fields.length} 个报名字段`
-                : `${fields.length} registration ${fields.length === 1 ? 'field' : 'fields'}`}
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">

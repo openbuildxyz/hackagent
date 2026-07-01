@@ -522,7 +522,7 @@ const en = {
   'reg.manage.rejectPlaceholder': 'Optional reason for rejection',
   'reg.manage.rejectConfirm': 'Confirm Reject',
   'reg.manage.rejecting': 'Submitting...',
-  'reg.manage.approveSuccess': 'Approved and project created',
+  'reg.manage.approveSuccess': 'Approved',
   'reg.manage.rejectSuccess': 'Rejected',
   'reg.manage.noData': 'No registrations yet',
   'reg.manage.selected': '{n} selected',
