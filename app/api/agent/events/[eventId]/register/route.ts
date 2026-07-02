@@ -78,7 +78,6 @@ export async function POST(
 
   const team_name = (body.team_name ?? body.name).trim()
   const github_url = body.github_url ?? null
-  const track_ids = Array.isArray(body.track_ids) ? body.track_ids.filter(Boolean) : []
   const extras: Record<string, string> = { ...(body.custom_fields ?? {}) }
   if (body.email) extras['email'] = body.email
   const description = Object.keys(extras).length > 0 ? JSON.stringify(extras) : null
@@ -100,17 +99,6 @@ export async function POST(
 
   if (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
-  }
-
-  // Auto-create project if auto_approve is on
-  if (status === 'approved') {
-    await db.from('projects').insert({
-      event_id: eventId,
-      name: team_name,
-      github_url,
-      track_ids,
-      status: 'pending',
-    })
   }
 
   return NextResponse.json(

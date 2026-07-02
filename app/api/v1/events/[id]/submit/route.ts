@@ -1,9 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getAgentUser } from '@/lib/agentAuth'
-import { validateProjectInput } from '@/lib/validate-project'
+import { normalizeHttpUrl, normalizeTeamSize, validateProjectInput } from '@/lib/validate-project'
 import { submissionAllowedStatus } from '@/lib/event-status'
 import { recordSubmissionVersion } from '@/lib/submissions'
+
+function buildSubmissionExtraFields(body: {
+  project_website?: unknown
+  demo_video_url?: unknown
+  team_size?: unknown
+}): Record<string, string> {
+  const extraFields: Record<string, string> = {}
+  const projectWebsite = normalizeHttpUrl(body.project_website)
+  const demoVideoUrl = normalizeHttpUrl(body.demo_video_url)
+  const teamSize = normalizeTeamSize(body.team_size)
+  if (projectWebsite) extraFields.project_website = projectWebsite
+  if (demoVideoUrl) extraFields.demo_video_url = demoVideoUrl
+  if (teamSize) extraFields.team_size = String(teamSize)
+  return extraFields
+}
 
 export async function POST(
   request: NextRequest,
@@ -66,12 +81,16 @@ export async function POST(
     github_url: string
     description?: string
     demo_url?: string
+    project_website?: string
+    demo_video_url?: string
+    team_size?: string | number
     extra?: Record<string, string>
   }
 
   const { project_name, github_url, description, demo_url } = body
   const v = validateProjectInput({ name: project_name, github_url, description, demo_url })
   if (!v.ok) return NextResponse.json({ error: 'Validation failed', details: v.errors }, { status: 400 })
+  const extraFields = buildSubmissionExtraFields(body)
 
   let existingProject: { id: string; name: string; github_url: string; status: string; team_id: string | null } | null = null
   if (teamId) {
@@ -99,6 +118,7 @@ export async function POST(
       description: v.sanitized.description,
     }
     if (demo_url !== undefined) updatePayload.demo_url = v.sanitized.demo_url
+    updatePayload.extra_fields = Object.keys(extraFields).length > 0 ? extraFields : null
 
     const { data: updated, error } = await db
       .from('projects')
@@ -137,6 +157,7 @@ export async function POST(
     team_name: reg.team_name,
     github_url: v.sanitized.github_url,
     description: v.sanitized.description,
+    extra_fields: Object.keys(extraFields).length > 0 ? extraFields : null,
     status: 'pending',
   }
   if (demo_url !== undefined) insertPayload.demo_url = v.sanitized.demo_url

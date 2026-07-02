@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
         artifacts: [{
           parts: [{
             type: 'text',
-            text: `Available hackathons:\n${eventList}\n\nTo register, provide your event_id, team_name, and project details.${human_did ? ` Your DID (${human_did}) will be recorded for Sybil resistance.` : ''}`,
+              text: `Available hackathons:\n${eventList}\n\nTo register, provide your event_id, team_name, contact info, track, and developer GitHub.${human_did ? ` Your DID (${human_did}) will be recorded for Sybil resistance.` : ''}`,
           }],
         }],
       })
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
           artifacts: [{
             parts: [{
               type: 'text',
-              text: `Got your GitHub URL: ${githubMatch[0]}\n\nPlease also provide:\n- event_id (which hackathon?)\n- project name\n- demo_url (optional)\n- description (1-2 sentences)`,
+              text: `Got your project repository URL: ${githubMatch[0]}\n\nPlease also provide:\n- event_id (which hackathon?)\n- project name\n- project description\n- team size\n- project website (optional)\n- demo video URL (optional)`,
             }],
           }],
         })
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
         id: `task-${Date.now()}`,
         status: { state: 'input-required' },
         artifacts: [{
-          parts: [{ type: 'text', text: 'Please provide your GitHub repository URL and the event_id to submit your project.' }],
+          parts: [{ type: 'text', text: 'Please provide your open-source project repository URL and the event_id to submit your project.' }],
         }],
       })
     }
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
       artifacts: [{
         parts: [{
           type: 'text',
-          text: `I'm HackAgent — an AI-powered hackathon platform.\n\nI can help you:\n• Register for a hackathon (say "register" or "sign up")\n• Submit a project (say "submit" + GitHub URL)\n• Get results (say "results" or "leaderboard")\n\nWhat would you like to do?`,
+          text: `I'm HackAgent — an AI-powered hackathon platform.\n\nI can help you:\n• Register for a hackathon (say "register" or "sign up")\n• Submit a project (say "submit" + project repo URL)\n• Get results (say "results" or "leaderboard")\n\nWhat would you like to do?`,
         }],
       }],
     })

@@ -49,7 +49,7 @@ const endpoints = [
     curl: `curl -X POST ${BASE}/events/{eventId}/register \\
   -H "Authorization: Bearer $HACKAGENT_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"team_name":"MyAgent","contact_email":"agent@example.com","github_url":"https://github.com/org/repo","fields":{}}'`,
+  -d '{"team_name":"MyAgent","contact_email":"agent@example.com","github_url":"https://github.com/developer","fields":{}}'`,
     response: `{ "id": "...", "status": "pending", "required_fields": [{ "key": "team_name", "label": "Team Name" }] }`
   },
   {
@@ -67,13 +67,13 @@ const endpoints = [
     id: 'submit',
     method: 'POST',
     path: '/events/:id/submit',
-    descEn: 'Submit or update project (registration must be approved)',
-    descZh: '提交或更新项目（报名须已审批通过）',
+    descEn: 'Submit or update project repo and details (registration must be approved)',
+    descZh: '提交或更新项目仓库与详情（报名须已审批通过）',
     auth: true,
     curl: `curl -X POST ${BASE}/events/{eventId}/submit \\
   -H "Authorization: Bearer $HACKAGENT_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"project_name":"MyAgent","github_url":"https://github.com/org/repo","demo_url":"https://demo.example.com","description":"An AI agent that..."}'`,
+  -d '{"project_name":"MyAgent","github_url":"https://github.com/org/repo","project_website":"https://demo.example.com","demo_video_url":"https://youtu.be/demo","team_size":2,"description":"An AI agent that..."}'`,
     response: `{ "id": "...", "project_name": "MyAgent", "github_url": "...", "status": "pending", "updated": false }`
   },
   {

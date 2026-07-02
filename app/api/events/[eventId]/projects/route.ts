@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUserWithRole } from '@/lib/session'
 import { recordAdminAction } from '@/lib/admin-audit'
-import { validateProjectInput } from '@/lib/validate-project'
+import { normalizeHttpUrl, normalizeTeamSize, validateProjectInput } from '@/lib/validate-project'
 import { getChatConfigForModelKey } from '@/lib/zenmux'
 import { MODEL_IDS } from '@/lib/models'
+import { recordSubmissionVersion } from '@/lib/submissions'
 
 const MAX_DESCRIPTION = 1000
 
@@ -183,6 +184,21 @@ function cleanTags(raw: unknown): string[] {
     .slice(0, 5)
 }
 
+function buildSubmissionExtraFields(body: {
+  project_website?: unknown
+  demo_video_url?: unknown
+  team_size?: unknown
+}): Record<string, string> {
+  const extraFields: Record<string, string> = {}
+  const projectWebsite = normalizeHttpUrl(body.project_website)
+  const demoVideoUrl = normalizeHttpUrl(body.demo_video_url)
+  const teamSize = normalizeTeamSize(body.team_size)
+  if (projectWebsite) extraFields.project_website = projectWebsite
+  if (demoVideoUrl) extraFields.demo_video_url = demoVideoUrl
+  if (teamSize) extraFields.team_size = String(teamSize)
+  return extraFields
+}
+
 // GET /api/events/[id]/projects
 export async function GET(
   _request: NextRequest,
@@ -259,7 +275,7 @@ export async function POST(
   // Participant submission flow: single project linked to an approved registration
   // Does NOT require event ownership — registration ownership is verified instead
   if ('registration_id' in body) {
-    const { registration_id, name, github_url, demo_url, description, team_name, track_ids, team_id } = body as {
+    const { registration_id, name, github_url, demo_url, description, team_name, track_ids } = body as {
       registration_id: string
       name?: string
       github_url?: string
@@ -267,7 +283,6 @@ export async function POST(
       description?: string
       team_name?: string
       track_ids?: string[]
-      team_id?: string
     }
 
     // Verify registration belongs to current user, is for this event, and is approved
@@ -285,10 +300,35 @@ export async function POST(
     if (reg.status !== 'approved') return NextResponse.json({ error: 'Registration not approved' }, { status: 403 })
     if (reg.project_id) return NextResponse.json({ error: 'Project already submitted', project_id: reg.project_id }, { status: 409 })
 
+    const { data: teamMember } = await db
+      .from('team_members')
+      .select('team_id, teams!inner(id, name, event_id, status)')
+      .eq('user_id', session.userId)
+      .eq('teams.event_id', eventId)
+      .neq('teams.status', 'disbanded')
+      .maybeSingle()
+    const activeTeam = teamMember?.teams && !Array.isArray(teamMember.teams)
+      ? teamMember.teams as { id: string; name: string; status: string }
+      : null
+    const activeTeamId = teamMember?.team_id ?? activeTeam?.id ?? null
+
+    if (activeTeamId) {
+      const { data: existingTeamProject } = await db
+        .from('projects')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('team_id', activeTeamId)
+        .maybeSingle()
+      if (existingTeamProject) {
+        return NextResponse.json({ error: 'Your team has already submitted a project', project_id: existingTeamProject.id }, { status: 409 })
+      }
+    }
+
     const v = validateProjectInput({ name, github_url, description, demo_url, team_name })
     if (!v.ok) {
       return NextResponse.json({ error: 'Validation failed', details: v.errors }, { status: 400 })
     }
+    const extraFields = buildSubmissionExtraFields(body as Record<string, unknown>)
 
     const { data: project, error: projErr } = await db
       .from('projects')
@@ -298,10 +338,11 @@ export async function POST(
         github_url: v.sanitized.github_url,
         demo_url: v.sanitized.demo_url,
         description: v.sanitized.description,
-        team_name: v.sanitized.team_name ?? (reg.team_name ?? null),
+        team_name: activeTeam?.name ?? v.sanitized.team_name ?? (reg.team_name ?? null),
         track_ids: Array.isArray(track_ids) && track_ids.length > 0 ? track_ids : [],
         registration_id,
-        team_id: team_id || null,
+        team_id: activeTeamId,
+        extra_fields: Object.keys(extraFields).length > 0 ? extraFields : null,
         status: 'pending',
       })
       .select('id, name')
@@ -311,8 +352,17 @@ export async function POST(
 
     // Link project to registration
     await db.from('registrations').update({ project_id: project.id }).eq('id', registration_id)
+    const version = await recordSubmissionVersion(db, {
+      eventId,
+      projectId: project.id,
+      registrationId: registration_id,
+      teamId: activeTeamId,
+      userId: session.userId,
+      body: body as Record<string, unknown>,
+      sanitized: v.sanitized,
+    })
 
-    return NextResponse.json({ project })
+    return NextResponse.json({ project, version })
   }
 
   // Admin bulk import flow — requires event ownership (OPE-25: admin bypass)

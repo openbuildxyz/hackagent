@@ -24,11 +24,31 @@ export async function GET(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   if (!reg) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  // Look up linked project via registration_id
+  const { data: teamMember } = await db
+    .from('team_members')
+    .select('team_id, teams!inner(id, name, event_id, status)')
+    .eq('user_id', session.userId)
+    .eq('teams.event_id', eventId)
+    .neq('teams.status', 'disbanded')
+    .maybeSingle()
+  const activeTeam = teamMember?.teams && !Array.isArray(teamMember.teams)
+    ? teamMember.teams as { id: string; name: string; status: string }
+    : null
+  const activeTeamId = teamMember?.team_id ?? activeTeam?.id ?? null
+
+  // Look up linked project. Team submissions are owned by team_id, so every
+  // active member should see the same submitted project even if only the
+  // submitter's registration_id/project_id was updated.
+  const projectFilters = [`registration_id.eq.${reg.id}`]
+  if (reg.project_id) projectFilters.push(`id.eq.${reg.project_id}`)
+  if (activeTeamId) projectFilters.push(`team_id.eq.${activeTeamId}`)
   const { data: proj } = await db
     .from('projects')
-    .select('id, name, github_url, demo_url, description, team_name, status, created_at')
-    .eq('registration_id', reg.id)
+    .select('id, name, github_url, demo_url, description, team_name, status, created_at, extra_fields')
+    .eq('event_id', eventId)
+    .or(projectFilters.join(','))
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle()
 
   const rejectionReason = reg.rejection_reason ?? reg.reject_reason ?? null
@@ -43,6 +63,7 @@ export async function GET(
     rejection_reason: rejectionReason,
     reject_reason: rejectionReason,
     created_at: reg.submitted_at,
+    active_team: activeTeam ? { id: activeTeam.id, name: activeTeam.name } : null,
     project: proj ?? null,
   })
 }

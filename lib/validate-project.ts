@@ -8,6 +8,7 @@ const MAX_URL = 2048
 const MAX_DESCRIPTION = 1000
 const MAX_DEMO_URL = 2048
 const MAX_TEAM_NAME = 100
+const MAX_TEAM_SIZE = 50
 
 function stripHtml(str: string): string {
   return str.replace(/<[^>]+>/g, '').replace(/&\w+;/g, ' ').trim()
@@ -47,6 +48,20 @@ export interface ValidationResult {
     demo_url: string | null
     team_name: string | null
   }
+}
+
+export function normalizeHttpUrl(value: unknown): string | null {
+  if (value === undefined || value === null || value === '') return null
+  if (typeof value !== 'string') return null
+  const url = normalizeUrl(value)
+  return isValidHttpUrl(url) ? url : null
+}
+
+export function normalizeTeamSize(value: unknown): number | null {
+  if (value === undefined || value === null || value === '') return null
+  const size = typeof value === 'number' ? value : Number.parseInt(String(value), 10)
+  if (!Number.isInteger(size) || size < 1 || size > MAX_TEAM_SIZE) return null
+  return size
 }
 
 export function validateProjectInput(input: {

@@ -152,7 +152,8 @@ export async function POST(
     )
   }
 
-  // team_name / github_url 从约定字段取，其余放 extra_fields
+  // team_name / github_url 从约定字段取，其余放 extra_fields。
+  // Registration github_url is the participant/developer GitHub, not the project repository.
   const team_name = (body['project_name'] ?? body['team_name'] ?? '').trim()
   if (!team_name) {
     return NextResponse.json({ error: 'project_name or team_name is required' }, { status: 400 })
@@ -223,18 +224,6 @@ export async function POST(
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
-  if (status === 'approved') {
-    await db.from('projects').insert({
-      event_id: eventId,
-      registration_id: reg.id,
-      name: team_name,
-      team_name,
-      github_url: github_url ?? null,
-      description: body['description'] ?? null,
-      status: 'pending',
-    })
   }
 
   // 返回时告知调用方需要哪些字段（方便 Agent 调试）

@@ -105,9 +105,9 @@ curl https://hackathon.xyz/api/v1/events
 
 # Register for an event (key required)
 curl -X POST https://hackathon.xyz/api/v1/events/{id}/register \\
-  -H "Authorization: Bearer $HACKAGENT_API_KEY" \\
+  -H "Authorization: Bearer $HACKA...KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"project_name": "MyBot", "github_url": "https://github.com/..."}'`,
+  -d '{"team_name": "MyBot", "contact_email": "bot@example.com", "github_url": "https://github.com/developer"}'`,
   },
 }
 

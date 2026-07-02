@@ -33,12 +33,14 @@ interface MyRegistration {
   team_name: string | null
   track_id: string | null
   project_id: string | null
+  active_team: { id: string; name: string } | null
   project: {
     id: string
     name: string
     github_url: string | null
     demo_url: string | null
     description: string | null
+    extra_fields: Record<string, string> | null
     status: string
     created_at: string
   } | null
@@ -64,8 +66,11 @@ export default function SubmitProjectPage() {
   const [name, setName] = useState('')
   const [githubUrl, setGithubUrl] = useState('')
   const [demoUrl, setDemoUrl] = useState('')
+  const [projectWebsite, setProjectWebsite] = useState('')
+  const [demoVideoUrl, setDemoVideoUrl] = useState('')
   const [description, setDescription] = useState('')
   const [teamName, setTeamName] = useState('')
+  const [teamSize, setTeamSize] = useState('')
   const [trackId, setTrackId] = useState('')
 
   const loadData = useCallback(async () => {
@@ -99,7 +104,8 @@ export default function SubmitProjectPage() {
       const reg: MyRegistration = await regRes.json()
       setRegistration(reg)
       // Pre-fill team name and track from registration
-      if (reg.team_name) setTeamName(reg.team_name)
+      if (reg.active_team?.name) setTeamName(reg.active_team.name)
+      else if (reg.team_name) setTeamName(reg.team_name)
       if (reg.track_id) setTrackId(reg.track_id)
     }
 
@@ -129,8 +135,11 @@ export default function SubmitProjectPage() {
           name: name.trim(),
           github_url: githubUrl.trim(),
           demo_url: demoUrl.trim() || undefined,
+          project_website: projectWebsite.trim() || undefined,
+          demo_video_url: demoVideoUrl.trim() || undefined,
           description: description.trim(),
           team_name: teamName.trim() || undefined,
+          team_size: teamSize.trim() || undefined,
           track_ids: trackId ? [trackId] : undefined,
         }),
       })
@@ -249,6 +258,17 @@ export default function SubmitProjectPage() {
                     <span className="truncate">{project.demo_url}</span>
                   </a>
                 )}
+                {project.extra_fields?.project_website && (
+                  <a
+                    href={project.extra_fields.project_website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <ExternalLink size={13} />
+                    <span className="truncate">{project.extra_fields.project_website}</span>
+                  </a>
+                )}
                 <div className="text-muted-foreground">
                   {t('submit.submittedAt')}{formatDate(project.created_at, locale)}
                 </div>
@@ -265,6 +285,7 @@ export default function SubmitProjectPage() {
   const isSubmissionClosed = eventConfig.submission_deadline
     ? new Date(eventConfig.submission_deadline) < new Date()
     : false
+  const activeTeamName = registration.active_team?.name ?? null
 
   if (isSubmissionClosed) {
     return (
@@ -295,6 +316,12 @@ export default function SubmitProjectPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="rounded-md border border-token bg-surface-1 px-3 py-2 text-sm text-muted-foreground">
+                {activeTeamName
+                  ? t('submit.teamSubmitNotice').replace('{team}', activeTeamName)
+                  : t('submit.soloSubmitNotice')}
+              </div>
+
               <div className="space-y-1.5">
                 <Label htmlFor="name">
                   {t('submit.projectName')} <span className="text-red-500">*</span>
@@ -310,15 +337,26 @@ export default function SubmitProjectPage() {
 
               <div className="space-y-1.5">
                 <Label htmlFor="github_url">
-                  {t('submit.githubUrl')} <span className="text-red-500">*</span>
+                  {t('submit.projectRepoUrl')} <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="github_url"
                   type="url"
                   value={githubUrl}
                   onChange={e => setGithubUrl(e.target.value)}
-                  placeholder="https://github.com/..."
+                  placeholder="https://github.com/org/project"
                   required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="project_website">{t('submit.projectWebsite')}</Label>
+                <Input
+                  id="project_website"
+                  type="url"
+                  value={projectWebsite}
+                  onChange={e => setProjectWebsite(e.target.value)}
+                  placeholder="https://..."
                 />
               </div>
 
@@ -329,6 +367,17 @@ export default function SubmitProjectPage() {
                   type="url"
                   value={demoUrl}
                   onChange={e => setDemoUrl(e.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="demo_video_url">{t('submit.demoVideoUrl')}</Label>
+                <Input
+                  id="demo_video_url"
+                  type="url"
+                  value={demoVideoUrl}
+                  onChange={e => setDemoVideoUrl(e.target.value)}
                   placeholder="https://..."
                 />
               </div>
@@ -357,6 +406,20 @@ export default function SubmitProjectPage() {
                   value={teamName}
                   onChange={e => setTeamName(e.target.value)}
                   placeholder={t('submit.teamNamePlaceholder')}
+                  readOnly={Boolean(activeTeamName)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="team_size">{t('submit.teamSize')}</Label>
+                <Input
+                  id="team_size"
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={teamSize}
+                  onChange={e => setTeamSize(e.target.value)}
+                  placeholder={t('submit.teamSizePlaceholder')}
                 />
               </div>
 
