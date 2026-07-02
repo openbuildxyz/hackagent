@@ -5,6 +5,12 @@ function read(path) {
   return fs.readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 }
 
+function fieldTemplates(source, path) {
+  const match = source.match(/const FIELD_TEMPLATES:[\s\S]*?= \[([\s\S]*?)\]\n/)
+  assert.ok(match, `${path} declares FIELD_TEMPLATES`)
+  return match[1]
+}
+
 const humanRegistration = read('app/api/events/[eventId]/registrations/route.ts')
 assert.doesNotMatch(humanRegistration, /from\('projects'\)\.insert/, 'human registration must not create placeholder projects')
 assert.match(humanRegistration, /github_url:\s*github_url \?\? null/, 'registration stores github_url as participant/developer GitHub only')
@@ -13,10 +19,22 @@ const agentRegistration = read('app/api/v1/events/[id]/register/route.ts')
 assert.doesNotMatch(agentRegistration, /from\('projects'\)\.insert/, 'agent registration auto-approval must not create placeholder projects')
 assert.match(agentRegistration, /Registration.*github_url.*participant\/developer GitHub/s, 'agent registration docs/comments distinguish developer GitHub from project repo')
 
+const newEventForm = read('app/(dashboard)/events/new/NewEventForm.tsx')
+const newEventTemplates = fieldTemplates(newEventForm, 'event create form')
+assert.doesNotMatch(newEventTemplates, /Project Website|项目官网/, 'event create signup quick-add templates do not include project website')
+assert.doesNotMatch(newEventTemplates, /Demo Video|Demo 视频/, 'event create signup quick-add templates do not include demo video')
+
+const editEventPage = read('app/(dashboard)/events/[id]/edit/page.tsx')
+const editEventTemplates = fieldTemplates(editEventPage, 'event edit form')
+assert.doesNotMatch(editEventTemplates, /field\.template\.projectWebsite/, 'event edit signup quick-add templates do not include project website')
+assert.doesNotMatch(editEventTemplates, /field\.template\.demoVideo/, 'event edit signup quick-add templates do not include demo video')
+
 const submitPage = read('app/apply/[eventId]/submit/page.tsx')
 assert.match(submitPage, /submit\.projectRepoUrl/, 'project submission form labels github_url as project repository URL')
 assert.match(submitPage, /project_website/, 'project submission form collects project website')
+assert.match(submitPage, /submit\.projectWebsite/, 'project submission form labels project website')
 assert.match(submitPage, /demo_video_url/, 'project submission form collects demo video URL')
+assert.match(submitPage, /submit\.demoVideoUrl/, 'project submission form labels demo video URL')
 assert.match(submitPage, /team_size/, 'project submission form collects team size')
 assert.match(submitPage, /active_team/, 'project submission form surfaces active team context')
 
