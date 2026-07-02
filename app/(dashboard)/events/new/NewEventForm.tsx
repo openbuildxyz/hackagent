@@ -35,7 +35,6 @@ interface FieldTemplate {
 const FIELD_TEMPLATES: FieldTemplate[] = [
   { label: { zh: '项目简介', en: 'Project Introduction' }, type: 'textarea' },
   { label: { zh: '团队规模', en: 'Team Size' }, type: 'select', options: ['1', '2-3', '4-5', '6+'] },
-  { label: { zh: '参赛赛道', en: 'Track' }, type: 'select', dynamicOptions: 'tracks' },
   { label: { zh: '技术栈', en: 'Tech Stack' }, type: 'multiselect', options: ['Solana', 'Ethereum', 'Base', 'Sui', 'Move', 'Rust', 'TypeScript', 'Python'] },
   { label: { zh: '所在城市', en: 'City' }, type: 'text' },
   { label: { zh: 'Twitter/X', en: 'Twitter/X' }, type: 'url' },

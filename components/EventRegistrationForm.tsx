@@ -65,6 +65,24 @@ function resolveFieldLabel(
   return field.label
 }
 
+function isTrackLikeCustomField(field: CustomField): boolean {
+  if (field.default || field.key === 'track_id') return false
+  const label = field.label.trim().toLowerCase()
+  return label === 'track' || label === '参赛赛道'
+}
+
+function getRegistrationFields(fields: CustomField[]): CustomField[] {
+  let sawTrackId = false
+  return fields.filter(field => {
+    if (field.key === 'track_id') {
+      if (sawTrackId) return false
+      sawTrackId = true
+      return true
+    }
+    return !isTrackLikeCustomField(field)
+  })
+}
+
 export default function EventRegistrationForm({
   eventConfig,
   redirectPath,
@@ -163,7 +181,7 @@ export default function EventRegistrationForm({
       return
     }
 
-    const fields = eventConfig.registration_config?.fields ?? []
+    const fields = getRegistrationFields(eventConfig.registration_config?.fields ?? [])
 
     for (const field of fields) {
       if (field.required && !formValues[field.key]?.trim()) {
@@ -216,7 +234,7 @@ export default function EventRegistrationForm({
   const isOpen = config?.open ?? false
   const deadline = eventConfig.registration_deadline
   const isClosed = deadline ? new Date(deadline) < new Date() : false
-  const fields = config?.fields ?? []
+  const fields = getRegistrationFields(config?.fields ?? [])
   const toggleMultiValue = (fieldKey: string, option: string) => {
     setFormValues(values => {
       const selected = (values[fieldKey] ?? '').split(',').map(value => value.trim()).filter(Boolean)

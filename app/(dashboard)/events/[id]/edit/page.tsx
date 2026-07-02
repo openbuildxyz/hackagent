@@ -50,7 +50,6 @@ interface FieldTemplate {
 const FIELD_TEMPLATES: FieldTemplate[] = [
   { labelKey: 'field.template.projectIntro', type: 'textarea' },
   { labelKey: 'field.template.teamSize', type: 'select', options: ['1', '2-3', '4-5', '6+'] },
-  { labelKey: 'field.template.track', type: 'select', dynamicOptions: 'tracks' },
   { labelKey: 'field.template.techStack', type: 'multiselect', options: ['Solana', 'Ethereum', 'Base', 'Sui', 'Move', 'Rust', 'TypeScript', 'Python'] },
   { labelKey: 'field.template.city', type: 'text' },
   { labelKey: 'field.template.twitter', type: 'url' },
