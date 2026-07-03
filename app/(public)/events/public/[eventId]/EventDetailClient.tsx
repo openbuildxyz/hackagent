@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowRight, Calendar, ExternalLink, Trophy, Vote } from 'lucide-react'
+import { ArrowRight, Calendar, ExternalLink, Send, Trophy, Users, Vote } from 'lucide-react'
 import { useT, useLocale } from '@/lib/i18n'
 import { formatDate as formatDeterministic } from '@/lib/format-date'
 import PublicNavbar from '@/components/PublicNavbar'
@@ -453,9 +453,20 @@ export default function EventDetailClient({ event }: { event: EventDetail }) {
               {event.status !== 'draft' && authChecked && (
                 <>
                   {registered ? (
-                    <Link href="/events">
-                      <Button variant="outline" className="w-full">{t('pub.detail.alreadyRegistered')}</Button>
-                    </Link>
+                    <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-1">
+                      <Link href={`/events/${event.id}/teams`}>
+                        <Button variant="outline" className="w-full gap-1.5">
+                          <Users size={14} />
+                          {t('pub.detail.teamHall')}
+                        </Button>
+                      </Link>
+                      <Link href={`/apply/${event.id}/submit`}>
+                        <Button className="w-full gap-1.5">
+                          <Send size={14} />
+                          {t('pub.detail.submitProject')}
+                        </Button>
+                      </Link>
+                    </div>
                   ) : isRecruiting && isRegOpen ? (
                     loggedIn ? (
                       <Link href={applyHref}>

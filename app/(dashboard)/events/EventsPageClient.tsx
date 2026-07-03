@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Folder, ArrowRight, ExternalLink, Bot, KeyRound, Send, Ticket } from 'lucide-react'
+import { Plus, Folder, ArrowRight, ExternalLink, Bot, KeyRound, Send, Ticket, Users } from 'lucide-react'
 import DeleteEventButton from '../DeleteEventButton'
 import { useT, type TranslationKey } from '@/lib/i18n'
 import EventCover from '@/components/EventCover'
@@ -230,7 +230,7 @@ export default function EventsPageClient({ events, canManage }: { events: EventS
                     <span>{createdAt}</span>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {canManage ? (
                       <Link href={`/events/${event.id}`} className="flex-1">
                         <Button variant="outline" size="sm" className="w-full gap-1.5 cursor-pointer">
@@ -247,12 +247,20 @@ export default function EventsPageClient({ events, canManage }: { events: EventS
                       </Link>
                     )}
                     {!canManage && event.participation?.registration_status === 'approved' && (
-                      <Link href={`/apply/${event.id}/submit`}>
-                        <Button variant="secondary" size="sm" className="gap-1.5">
-                          {t('dashboard.submit')}
-                          <Send size={13} />
-                        </Button>
-                      </Link>
+                      <>
+                        <Link href={`/events/${event.id}/teams`} className="flex-1 sm:flex-none">
+                          <Button variant="secondary" size="sm" className="w-full gap-1.5">
+                            {t('dashboard.teamHall')}
+                            <Users size={13} />
+                          </Button>
+                        </Link>
+                        <Link href={`/apply/${event.id}/submit`} className="flex-1 sm:flex-none">
+                          <Button variant="secondary" size="sm" className="w-full gap-1.5">
+                            {t('dashboard.submit')}
+                            <Send size={13} />
+                          </Button>
+                        </Link>
+                      </>
                     )}
                     {event.status === 'done' && (
                       <Link href={`/report/${event.id}`} target="_blank">
