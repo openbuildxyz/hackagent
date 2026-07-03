@@ -10,6 +10,7 @@ import { createServiceClient } from '@/lib/supabase-server'
 import { getServerLocale } from '@/lib/i18n-server'
 import { LocaleProvider } from '@/lib/i18n'
 import { normalizeRoles } from '@/lib/permissions'
+import DashboardTopBar from './DashboardTopBar'
 import SidebarContent from './SidebarContent'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -25,7 +26,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const db = createServiceClient()
   const { data: user } = await db
     .from('users')
-    .select('email, credits, role')
+    .select('email, credits, role, name')
     .eq('id', session.userId)
     .single()
 
@@ -37,6 +38,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <div className="flex h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
         <SidebarContent email={user?.email ?? ''} credits={user?.credits ?? 0} role={role} />
         <main className="flex-1 overflow-auto flex flex-col">
+          <DashboardTopBar name={user?.name} email={user?.email ?? session.email ?? ''} role={role} />
           <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">{children}</div>
           <footer className="border-t border-[var(--color-border)] px-6 lg:px-8 py-4 text-xs text-[var(--color-fg-subtle)] flex items-center justify-between">
             <span>© 2026 HackAgent · Powered by OpenBuild</span>
