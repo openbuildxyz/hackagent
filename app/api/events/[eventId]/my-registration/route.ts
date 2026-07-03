@@ -40,7 +40,6 @@ export async function GET(
   // active member should see the same submitted project even if only the
   // submitter's registration_id/project_id was updated.
   const projectFilters = [`registration_id.eq.${reg.id}`]
-  if (reg.project_id) projectFilters.push(`id.eq.${reg.project_id}`)
   if (activeTeamId) projectFilters.push(`team_id.eq.${activeTeamId}`)
   const { data: proj } = await db
     .from('projects')

@@ -32,24 +32,24 @@ export default async function DashboardPage() {
     const agentIds = (ownedAgents ?? []).map((agent) => agent.id).filter(Boolean)
     const { data: userRegistrations } = await db
       .from('registrations')
-      .select('id, event_id, status, agent_id, created_at')
+      .select('id, event_id, status, agent_id, submitted_at')
       .eq('user_id', session.userId)
-      .order('created_at', { ascending: false })
+      .order('submitted_at', { ascending: false })
 
     const agentRegistrations = agentIds.length > 0
       ? await db
         .from('registrations')
-        .select('id, event_id, status, agent_id, created_at')
+        .select('id, event_id, status, agent_id, submitted_at')
         .in('agent_id', agentIds)
-        .order('created_at', { ascending: false })
-      : { data: [] as Array<{ id: string; event_id: string; status: string | null; agent_id: string | null; created_at: string }> }
+        .order('submitted_at', { ascending: false })
+      : { data: [] as Array<{ id: string; event_id: string; status: string | null; agent_id: string | null; submitted_at: string | null }> }
 
     type RegistrationRow = {
       id: string
       event_id: string
       status: string | null
       agent_id: string | null
-      created_at: string
+      submitted_at: string | null
     }
     const registrationByEvent = new Map<string, RegistrationRow[]>()
     for (const reg of [...(userRegistrations ?? []), ...(agentRegistrations.data ?? [])] as RegistrationRow[]) {

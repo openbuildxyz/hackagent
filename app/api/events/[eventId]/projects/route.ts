@@ -288,7 +288,7 @@ export async function POST(
     // Verify registration belongs to current user, is for this event, and is approved
     const { data: reg } = await db
       .from('registrations')
-      .select('id, status, team_name, project_id')
+      .select('id, status, team_name')
       .eq('id', registration_id)
       .eq('event_id', eventId)
       .eq('user_id', session.userId)
@@ -298,7 +298,15 @@ export async function POST(
     if (reg.status === 'pending') return NextResponse.json({ error: 'Your registration is still pending approval. Please wait for the organizer to approve your registration before submitting a project.' }, { status: 403 })
     if (reg.status === 'rejected') return NextResponse.json({ error: 'Your registration was not approved. You cannot submit a project.' }, { status: 403 })
     if (reg.status !== 'approved') return NextResponse.json({ error: 'Registration not approved' }, { status: 403 })
-    if (reg.project_id) return NextResponse.json({ error: 'Project already submitted', project_id: reg.project_id }, { status: 409 })
+    const { data: existingRegistrationProject } = await db
+      .from('projects')
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('registration_id', registration_id)
+      .maybeSingle()
+    if (existingRegistrationProject) {
+      return NextResponse.json({ error: 'Project already submitted', project_id: existingRegistrationProject.id }, { status: 409 })
+    }
 
     const { data: teamMember } = await db
       .from('team_members')
@@ -350,8 +358,6 @@ export async function POST(
 
     if (projErr) return NextResponse.json({ error: projErr.message }, { status: 500 })
 
-    // Link project to registration
-    await db.from('registrations').update({ project_id: project.id }).eq('id', registration_id)
     const version = await recordSubmissionVersion(db, {
       eventId,
       projectId: project.id,
