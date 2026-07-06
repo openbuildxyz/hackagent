@@ -45,6 +45,7 @@ import {
 } from 'lucide-react'
 
 type UserInfo = { id: string; email: string }
+type MeResponse = { userId?: string; email?: string }
 type TeamMember = { id: string; user_id: string; role: string; joined_at: string; users: UserInfo }
 type JoinRequest = { id: string; user_id: string; message: string | null; status: string; created_at: string; users: UserInfo }
 type Team = {
@@ -103,8 +104,8 @@ export default function TeamDetailPage() {
     try {
       const res = await fetch('/api/me')
       if (res.ok) {
-        const data = await res.json()
-        setCurrentUserId(data.user?.id ?? null)
+        const data: MeResponse = await res.json()
+        setCurrentUserId(data.userId ?? null)
       }
     } catch {
       // ignore
