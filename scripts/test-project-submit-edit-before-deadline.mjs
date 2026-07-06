@@ -38,16 +38,16 @@ assert.match(
   'updating an existing submission should record a new submission version'
 )
 
-assert.match(
+assert.doesNotMatch(
   participantRoute,
-  /\.select\('id, status, team_name,.*project_id.*'\)/,
-  'registration lookup should include project_id so linked registrations can be updated consistently'
+  /\.select\('id, status, team_name,[^']*project_id[^']*'\)/,
+  'participant registration lookup must not require registrations.project_id; production schema may not have that compatibility column'
 )
 
-assert.match(
+assert.doesNotMatch(
   participantRoute,
-  /\.from\('registrations'\)\s*\.update\(\{ project_id: updated\.id \}\)/,
-  'updating an existing submission should keep registration.project_id linked to the project'
+  /\.from\('registrations'\)\s*\.update\(\{ project_id:/,
+  'updating an existing submission must not write registrations.project_id; projects.registration_id/team_id are the source of truth'
 )
 
 assert.match(

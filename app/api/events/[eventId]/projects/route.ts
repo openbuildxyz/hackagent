@@ -299,7 +299,7 @@ export async function POST(
     // Verify registration belongs to current user, is for this event, and is approved
     const { data: reg } = await db
       .from('registrations')
-      .select('id, status, team_name, project_id')
+      .select('id, status, team_name')
       .eq('id', registration_id)
       .eq('event_id', eventId)
       .eq('user_id', session.userId)
@@ -365,11 +365,6 @@ export async function POST(
         .single()
 
       if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
-
-      await db
-        .from('registrations')
-        .update({ project_id: updated.id })
-        .eq('id', registration_id)
 
       const version = await recordSubmissionVersion(db, {
         eventId,
