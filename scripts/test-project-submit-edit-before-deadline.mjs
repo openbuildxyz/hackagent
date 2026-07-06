@@ -14,6 +14,18 @@ assert.doesNotMatch(
   'participant project POST must not reject existing submissions before the deadline'
 )
 
+assert.doesNotMatch(
+  participantRoute,
+  /submissionAllowedStatus|Submissions are only accepted during hacking\/open stages/,
+  'participant project POST should match the user-facing submit rule: approved registration plus unexpired submission deadline, not hacking/open event status'
+)
+
+assert.match(
+  participantRoute,
+  /submission_deadline[\s\S]*Submission deadline has passed/,
+  'participant project POST should still enforce submission_deadline for both submit and edit'
+)
+
 assert.match(
   participantRoute,
   /existingProject[\s\S]*?\.update\(\{/,

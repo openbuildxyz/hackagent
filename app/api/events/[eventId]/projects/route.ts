@@ -6,7 +6,6 @@ import { normalizeHttpUrl, normalizeTeamSize, validateProjectInput } from '@/lib
 import { getChatConfigForModelKey } from '@/lib/zenmux'
 import { MODEL_IDS } from '@/lib/models'
 import { recordSubmissionVersion } from '@/lib/submissions'
-import { submissionAllowedStatus } from '@/lib/event-status'
 
 const MAX_DESCRIPTION = 1000
 
@@ -293,9 +292,6 @@ export async function POST(
       .is('deleted_at', null)
       .single()
     if (!event) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-    if (!submissionAllowedStatus(event.status)) {
-      return NextResponse.json({ error: 'Submissions are only accepted during hacking/open stages' }, { status: 403 })
-    }
     if (event.submission_deadline && new Date(event.submission_deadline) < new Date()) {
       return NextResponse.json({ error: 'Submission deadline has passed' }, { status: 400 })
     }
