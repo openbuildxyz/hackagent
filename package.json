@@ -17,6 +17,7 @@
     "test:registration-schema-compat": "node scripts/test-registration-schema-compat.mjs",
     "test:registration-track-field": "node scripts/test-registration-track-field.mjs",
     "test:team-detail-leader-detection": "node scripts/test-team-detail-leader-detection.mjs",
+    "test:team-rejected-reapply": "node scripts/test-team-rejected-reapply.mjs",
     "test:skill-md": "node scripts/test-skill-md.mjs",
     "test:review-progress": "node scripts/test-review-progress.mjs",
     "validate:open-source": "node scripts/validate-open-source.mjs"

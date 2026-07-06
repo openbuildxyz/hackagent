@@ -378,7 +378,7 @@ export default function TeamDetailPage() {
             </Button>
           )}
           {/* Non-member join */}
-          {!isMember && !myRequest && team.status === 'open' && !isFull && (
+          {!isMember && (!myRequest || myRequest.status === 'rejected') && team.status === 'open' && !isFull && (
             <Button size="sm" className="gap-1.5" onClick={() => setJoinOpen(true)}>
               <UserPlus size={14} />
               Apply to Join

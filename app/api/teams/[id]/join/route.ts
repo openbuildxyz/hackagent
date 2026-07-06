@@ -48,12 +48,26 @@ export async function POST(
     .eq('user_id', user.userId)
     .maybeSingle()
 
-  if (existingRequest) {
-    return NextResponse.json({ error: `Already have a ${existingRequest.status} request for this team` }, { status: 400 })
-  }
-
   const body = await req.json().catch(() => ({}))
   const { message } = body
+
+  if (existingRequest?.status === 'pending') {
+    return NextResponse.json({ error: 'Already have a pending request for this team' }, { status: 400 })
+  }
+  if (existingRequest?.status === 'approved') {
+    return NextResponse.json({ error: 'Already have an approved request for this team' }, { status: 400 })
+  }
+  if (existingRequest?.status === 'rejected') {
+    const { data: request, error } = await supabase
+      .from('team_join_requests')
+      .update({ message: message || null, status: 'pending', created_at: new Date().toISOString() })
+      .eq('id', existingRequest.id)
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ request }, { status: 200 })
+  }
 
   const { data: request, error } = await supabase
     .from('team_join_requests')
