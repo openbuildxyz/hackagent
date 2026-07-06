@@ -18,6 +18,7 @@
     "test:registration-track-field": "node scripts/test-registration-track-field.mjs",
     "test:team-detail-leader-detection": "node scripts/test-team-detail-leader-detection.mjs",
     "test:team-rejected-reapply": "node scripts/test-team-rejected-reapply.mjs",
+    "test:project-submit-edit-before-deadline": "node scripts/test-project-submit-edit-before-deadline.mjs",
     "test:skill-md": "node scripts/test-skill-md.mjs",
     "test:review-progress": "node scripts/test-review-progress.mjs",
     "validate:open-source": "node scripts/validate-open-source.mjs"

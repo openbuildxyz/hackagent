@@ -6,6 +6,7 @@ import { normalizeHttpUrl, normalizeTeamSize, validateProjectInput } from '@/lib
 import { getChatConfigForModelKey } from '@/lib/zenmux'
 import { MODEL_IDS } from '@/lib/models'
 import { recordSubmissionVersion } from '@/lib/submissions'
+import { submissionAllowedStatus } from '@/lib/event-status'
 
 const MAX_DESCRIPTION = 1000
 
@@ -285,10 +286,24 @@ export async function POST(
       track_ids?: string[]
     }
 
+    const { data: event } = await db
+      .from('events')
+      .select('id, status, submission_deadline')
+      .eq('id', eventId)
+      .is('deleted_at', null)
+      .single()
+    if (!event) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+    if (!submissionAllowedStatus(event.status)) {
+      return NextResponse.json({ error: 'Submissions are only accepted during hacking/open stages' }, { status: 403 })
+    }
+    if (event.submission_deadline && new Date(event.submission_deadline) < new Date()) {
+      return NextResponse.json({ error: 'Submission deadline has passed' }, { status: 400 })
+    }
+
     // Verify registration belongs to current user, is for this event, and is approved
     const { data: reg } = await db
       .from('registrations')
-      .select('id, status, team_name')
+      .select('id, status, team_name, project_id')
       .eq('id', registration_id)
       .eq('event_id', eventId)
       .eq('user_id', session.userId)
@@ -298,15 +313,11 @@ export async function POST(
     if (reg.status === 'pending') return NextResponse.json({ error: 'Your registration is still pending approval. Please wait for the organizer to approve your registration before submitting a project.' }, { status: 403 })
     if (reg.status === 'rejected') return NextResponse.json({ error: 'Your registration was not approved. You cannot submit a project.' }, { status: 403 })
     if (reg.status !== 'approved') return NextResponse.json({ error: 'Registration not approved' }, { status: 403 })
-    const { data: existingRegistrationProject } = await db
-      .from('projects')
-      .select('id')
-      .eq('event_id', eventId)
-      .eq('registration_id', registration_id)
-      .maybeSingle()
-    if (existingRegistrationProject) {
-      return NextResponse.json({ error: 'Project already submitted', project_id: existingRegistrationProject.id }, { status: 409 })
+    const v = validateProjectInput({ name, github_url, description, demo_url, team_name })
+    if (!v.ok) {
+      return NextResponse.json({ error: 'Validation failed', details: v.errors }, { status: 400 })
     }
+    const extraFields = buildSubmissionExtraFields(body as Record<string, unknown>)
 
     const { data: teamMember } = await db
       .from('team_members')
@@ -320,23 +331,62 @@ export async function POST(
       : null
     const activeTeamId = teamMember?.team_id ?? activeTeam?.id ?? null
 
+    let existingProject: { id: string; team_id: string | null; status: string } | null = null
     if (activeTeamId) {
-      const { data: existingTeamProject } = await db
+      const { data } = await db
         .from('projects')
-        .select('id')
+        .select('id, team_id, status')
         .eq('event_id', eventId)
         .eq('team_id', activeTeamId)
         .maybeSingle()
-      if (existingTeamProject) {
-        return NextResponse.json({ error: 'Your team has already submitted a project', project_id: existingTeamProject.id }, { status: 409 })
-      }
+      existingProject = data
+    } else {
+      const { data } = await db
+        .from('projects')
+        .select('id, team_id, status')
+        .eq('event_id', eventId)
+        .eq('registration_id', registration_id)
+        .maybeSingle()
+      existingProject = data
     }
 
-    const v = validateProjectInput({ name, github_url, description, demo_url, team_name })
-    if (!v.ok) {
-      return NextResponse.json({ error: 'Validation failed', details: v.errors }, { status: 400 })
+    if (existingProject) {
+      const { data: updated, error: updateErr } = await db
+        .from('projects')
+        .update({
+          name: v.sanitized.name,
+          github_url: v.sanitized.github_url,
+          demo_url: v.sanitized.demo_url,
+          description: v.sanitized.description,
+          team_name: activeTeam?.name ?? v.sanitized.team_name ?? (reg.team_name ?? null),
+          track_ids: Array.isArray(track_ids) && track_ids.length > 0 ? track_ids : [],
+          registration_id,
+          team_id: activeTeamId,
+          extra_fields: Object.keys(extraFields).length > 0 ? extraFields : null,
+        })
+        .eq('id', existingProject.id)
+        .select('id, name, status')
+        .single()
+
+      if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
+
+      await db
+        .from('registrations')
+        .update({ project_id: updated.id })
+        .eq('id', registration_id)
+
+      const version = await recordSubmissionVersion(db, {
+        eventId,
+        projectId: updated.id,
+        registrationId: registration_id,
+        teamId: activeTeamId ?? existingProject.team_id ?? null,
+        userId: session.userId,
+        body: body as Record<string, unknown>,
+        sanitized: v.sanitized,
+      })
+
+      return NextResponse.json({ project: updated, updated: true, version })
     }
-    const extraFields = buildSubmissionExtraFields(body as Record<string, unknown>)
 
     const { data: project, error: projErr } = await db
       .from('projects')

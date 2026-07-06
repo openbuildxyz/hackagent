@@ -57,7 +57,7 @@ export default function SubmitProjectPage() {
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
+  const [saved, setSaved] = useState(false)
 
   const [eventConfig, setEventConfig] = useState<EventConfig | null>(null)
   const [registration, setRegistration] = useState<MyRegistration | null>(null)
@@ -107,6 +107,16 @@ export default function SubmitProjectPage() {
       if (reg.active_team?.name) setTeamName(reg.active_team.name)
       else if (reg.team_name) setTeamName(reg.team_name)
       if (reg.track_id) setTrackId(reg.track_id)
+      const project = reg.project
+      if (project) {
+        setName(project.name ?? '')
+        setGithubUrl(project.github_url ?? '')
+        setDemoUrl(project.demo_url ?? '')
+        setProjectWebsite(project.extra_fields?.project_website ?? '')
+        setDemoVideoUrl(project.extra_fields?.demo_video_url ?? '')
+        setDescription(project.description ?? '')
+        setTeamSize(project.extra_fields?.team_size ?? '')
+      }
     }
 
     setLoading(false)
@@ -149,8 +159,9 @@ export default function SubmitProjectPage() {
         throw new Error(data.error || t('submit.failed'))
       }
 
-      setSubmitted(true)
-      toast.success(t('submit.success'))
+      setSaved(true)
+      toast.success(registration.project ? t('submit.updateSuccess') : t('submit.success'))
+      await loadData()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('submit.failed'))
     } finally {
@@ -221,8 +232,15 @@ export default function SubmitProjectPage() {
     )
   }
 
-  // Already submitted
-  if (registration.project || submitted) {
+  const tracks = eventConfig.tracks ?? []
+  const isSubmissionClosed = eventConfig.submission_deadline
+    ? new Date(eventConfig.submission_deadline) < new Date()
+    : false
+  const activeTeamName = registration.active_team?.name ?? null
+  const isEditing = Boolean(registration.project)
+
+  // After the deadline, existing submissions become read-only.
+  if (isSubmissionClosed && registration.project) {
     const project = registration.project
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface px-4">
@@ -281,12 +299,6 @@ export default function SubmitProjectPage() {
     )
   }
 
-  const tracks = eventConfig.tracks ?? []
-  const isSubmissionClosed = eventConfig.submission_deadline
-    ? new Date(eventConfig.submission_deadline) < new Date()
-    : false
-  const activeTeamName = registration.active_team?.name ?? null
-
   if (isSubmissionClosed) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface px-4">
@@ -311,8 +323,8 @@ export default function SubmitProjectPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{t('submit.projectInfo')}</CardTitle>
-            <CardDescription>{t('submit.subtitle')}</CardDescription>
+            <CardTitle className="text-base">{isEditing ? t('submit.editTitle') : t('submit.projectInfo')}</CardTitle>
+            <CardDescription>{isEditing ? t('submit.editSubtitle') : t('submit.subtitle')}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -450,8 +462,11 @@ export default function SubmitProjectPage() {
                     <Loader2 size={14} className="animate-spin mr-2" />
                     {t('submit.submitting')}
                   </>
-                ) : t('submit.submitBtn')}
+                ) : isEditing ? t('submit.updateBtn') : t('submit.submitBtn')}
               </Button>
+              {saved && (
+                <p className="text-center text-sm text-green-600">{t('submit.savedNotice')}</p>
+              )}
             </form>
           </CardContent>
         </Card>
