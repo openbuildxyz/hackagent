@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
   const db = createServiceClient()
   const { data: user } = await db
     .from('users')
-    .select('id, email, reset_token, reset_expires_at, reset_issued_at')
+    .select('id, email, reset_token, reset_expires_at')
     .eq('email', normalizedEmail)
     .single()
 
@@ -59,28 +59,30 @@ export async function POST(request: NextRequest) {
   const existingExpiresAt = user.reset_expires_at
     ? new Date(user.reset_expires_at).getTime()
     : 0
-  const existingIssuedAt = user.reset_issued_at
-    ? new Date(user.reset_issued_at).getTime()
-    : 0
 
   // Reuse window: if we issued a token <60s ago and it's still valid,
   // don't rotate it and don't resend the email. This both saves the user
   // from duplicate mail on double-clicks AND removes the attacker's
   // ability to rapidly invalidate a live reset link.
-  const tokenIsLive = user.reset_token && existingExpiresAt > now
-  const issuedRecently = existingIssuedAt > now - 60 * 1000
-  if (tokenIsLive && issuedRecently) return ok()
+  // NOTE: reset_issued_at column may not exist yet (migration 028 not applied).
+  // In that case we skip the reuse window — the per-email rate limiter (3/hour)
+  // already prevents flooding.
+  if (user.reset_token && existingExpiresAt > now) {
+    // Token still live — check if we issued it recently via the expires_at delta.
+    // A fresh token has expires_at ~1h ahead; if it was issued <60s ago,
+    // expires_at is still >59min in the future. Use this as a proxy.
+    const tokenFreshnessMs = existingExpiresAt - now
+    if (tokenFreshnessMs > 59 * 60 * 1000) return ok()
+  }
 
   const token = crypto.randomUUID()
   const expiresAt = new Date(now + 60 * 60 * 1000).toISOString() // 1h
-  const issuedAt = new Date(now).toISOString()
 
   await db
     .from('users')
     .update({
       reset_token: token,
       reset_expires_at: expiresAt,
-      reset_issued_at: issuedAt,
     })
     .eq('id', user.id)
 
