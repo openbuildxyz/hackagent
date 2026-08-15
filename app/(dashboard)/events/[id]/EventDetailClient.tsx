@@ -65,6 +65,7 @@ type Event = {
   web3_enabled: boolean
   models: string[]
   status: string
+  can_manage_projects?: boolean
   mode: string
   created_at: string
   column_mapping?: Record<string, string | null>
@@ -1260,6 +1261,7 @@ export default function EventDetailClient() {
               showPitch={showPitch}
               visibleExtraKeys={visibleExtraKeys}
               isOwner={!!event}
+              canManageProjects={event?.can_manage_projects ?? false}
               fieldLabels={labels}
               tracks={event?.tracks ?? []}
             />

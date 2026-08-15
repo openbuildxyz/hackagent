@@ -28,7 +28,7 @@ export async function GET(
     if (!anyEvent) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
-    return NextResponse.json(anyEvent)
+    return NextResponse.json({ ...anyEvent, can_manage_projects: true })
   }
 
   // Try as owner first
@@ -41,7 +41,7 @@ export async function GET(
     .single()
 
   if (event) {
-    return NextResponse.json(event)
+    return NextResponse.json({ ...event, can_manage_projects: true })
   }
 
   // Fallback: check if user is a reviewer for this event
@@ -67,7 +67,7 @@ export async function GET(
     return NextResponse.json({ error: 'Event not found' }, { status: 404 })
   }
 
-  return NextResponse.json(reviewerEvent)
+  return NextResponse.json({ ...reviewerEvent, can_manage_projects: false })
 }
 
 export async function PATCH(

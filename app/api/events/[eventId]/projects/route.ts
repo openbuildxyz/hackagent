@@ -568,7 +568,7 @@ export async function DELETE(
   // OPE-25: admin bypass — 任意活动可清项目；否则必须是 owner
   const { data: event } = await db
     .from('events')
-    .select('id, user_id')
+    .select('id, user_id, status')
     .eq('id', eventId)
     .is('deleted_at', null)
     .maybeSingle()
@@ -576,6 +576,9 @@ export async function DELETE(
   const isOwner = event.user_id === session.userId
   if (!isOwner && !session.isAdmin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  if (event.status === 'done') {
+    return NextResponse.json({ error: 'Projects cannot be deleted after judging is complete' }, { status: 403 })
   }
 
   const body = await request.json() as { ids: string[] | 'all' }

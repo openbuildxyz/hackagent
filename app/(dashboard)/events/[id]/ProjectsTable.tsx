@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
@@ -158,6 +159,7 @@ interface Props {
   showPitch?: boolean
   visibleExtraKeys: string[]
   isOwner: boolean
+  canManageProjects?: boolean
   fieldLabels?: Record<string, string>  // column_mapping.__labels__ 动态标签
   tracks?: Track[]
   // Reviewer mode props
@@ -191,13 +193,14 @@ function SummaryBlock({ text, variant = 'ai' }: { text: string; variant?: 'ai' |
 
 export default function ProjectsTable({
   eventId, eventStatus, initialProjects, headerName, headerTeam, headerTags,
-  showTeam, showTags, showPitch, visibleExtraKeys, isOwner, fieldLabels = {},
+  showTeam, showTags, showPitch, visibleExtraKeys, isOwner, canManageProjects, fieldLabels = {},
   tracks = [],
   reviewerMode, onAdjustScore, onSubmitProject, submittedProjectIds, rowActions,
 }: Props) {
   const fl = fieldLabels  // alias
   const t = useT()
   const isDone = eventStatus === 'done'
+  const canManage = canManageProjects ?? isOwner
   const [projects, setProjects] = useState(initialProjects)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
@@ -358,7 +361,7 @@ export default function ProjectsTable({
 
   const openEdit = (p: Project) => {
     setEditProject(p)
-    setEditForm({ name: p.name, github_url: p.github_url ?? '', demo_url: p.demo_url ?? '', team_name: p.team_name ?? '', track_ids: p.track_ids ?? [], logo_url: p.logo_url ?? null })
+    setEditForm({ name: p.name, github_url: p.github_url ?? '', demo_url: p.demo_url ?? '', description: p.description ?? '', team_name: p.team_name ?? '', track_ids: p.track_ids ?? [], logo_url: p.logo_url ?? null })
     setEditExtra({ ...(p.extra_fields ?? {}) })
   }
   const saveEdit = async () => {
@@ -413,7 +416,7 @@ export default function ProjectsTable({
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
         <div className="flex items-center gap-2">
-          {isOwner && !isDone && (
+          {canManage && !isDone && (
             <>
               {selected.size > 0 ? (
                 <>
@@ -557,7 +560,7 @@ export default function ProjectsTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-[var(--color-surface)]">
-              {isOwner && <TableHead className="w-8"><Checkbox checked={allSelected} onCheckedChange={toggleAll} /></TableHead>}
+              {canManage && <TableHead className="w-8"><Checkbox checked={allSelected} onCheckedChange={toggleAll} /></TableHead>}
               <TableHead className="w-8 text-center text-muted-foreground">#</TableHead>
               <TableHead>{headerName}</TableHead>
               {showTeam && <TableHead>{headerTeam}</TableHead>}
@@ -591,7 +594,7 @@ export default function ProjectsTable({
                 <React.Fragment key={project.id}>
                 <TableRow
                   className={`hover:bg-[var(--color-surface)]/50 transition-colors ${selected.has(project.id) ? 'bg-blue-50/30 dark:bg-blue-400/10' : ''}`}>
-                  {isOwner && (
+                  {canManage && (
                     <TableCell>
                       <Checkbox checked={selected.has(project.id)} onCheckedChange={() => toggleOne(project.id)} />
                     </TableCell>
@@ -681,7 +684,7 @@ export default function ProjectsTable({
                           {statusDetail.sonar.required ? `S ${progressLabel(statusDetail.sonar.status)}` : `AI ${statusDetail.ai.completed}/${statusDetail.ai.total}`}
                         </span>
                       )}
-                      {isOwner && (
+                      {canManage && (
                         <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
                           onClick={() => openEdit(project)}>
                           <Pencil size={12} />
@@ -1054,6 +1057,10 @@ export default function ProjectsTable({
             <div className="space-y-1">
               <Label className="text-fg-muted">{fl.demo_url || '演示链接'}</Label>
               <Input value={editForm.demo_url ?? ''} placeholder="https://..." onChange={e => setEditForm(f => ({ ...f, demo_url: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-fg-muted">项目描述 *</Label>
+              <Textarea value={editForm.description ?? ''} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
             </div>
             {/* team_name only if project has it */}
             {(editProject?.team_name !== undefined) && (
