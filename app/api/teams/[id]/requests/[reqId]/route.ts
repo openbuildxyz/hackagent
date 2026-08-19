@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/session'
 import { createServiceClient } from '@/lib/supabase'
 import { teamMutableStatus } from '@/lib/event-status'
+import { isEventManager } from '@/lib/event-access'
 
 export async function PUT(
   req: NextRequest,
@@ -20,7 +21,9 @@ export async function PUT(
     .single()
 
   if (teamError || !team) return NextResponse.json({ error: 'Team not found' }, { status: 404 })
-  if (team.leader_id !== user.userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (team.leader_id !== user.userId && !(await isEventManager(supabase, team.event_id, user))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
   const eventRow = Array.isArray(team.events) ? team.events[0] : team.events
   if (!teamMutableStatus(eventRow?.status)) {
     return NextResponse.json({ error: 'Team membership is locked for this event stage' }, { status: 409 })

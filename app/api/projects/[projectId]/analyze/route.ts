@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUser } from '@/lib/session'
+import { isEventManager } from '@/lib/event-access'
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || ''
 const GITHUB_API = 'https://api.github.com'
@@ -54,8 +55,7 @@ export async function POST(
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
   // Authorize: event owner OR reviewer of the event
-  const eventOwner = (project.events as { user_id?: string } | null)?.user_id
-  if (eventOwner !== session.userId) {
+  if (!(await isEventManager(db, project.event_id, session))) {
     const { data: reviewer } = await db
       .from('event_reviewers')
       .select('id')

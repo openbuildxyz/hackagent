@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUserWithRole } from '@/lib/session'
 import { recordAdminAction } from '@/lib/admin-audit'
+import { getEventManagerAccess } from '@/lib/event-access'
 
 export async function GET(
   _request: NextRequest,
@@ -17,18 +18,9 @@ export async function GET(
 
   console.log('[GET /api/events]', { eventId, sessionUserId: session.userId, isAdmin: session.isAdmin })
 
-  // Admin bypass: 可读任意活动
-  if (session.isAdmin) {
-    const { data: anyEvent } = await db
-      .from('events')
-      .select('*')
-      .eq('id', eventId)
-      .is('deleted_at', null)
-      .maybeSingle()
-    if (!anyEvent) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-    }
-    return NextResponse.json({ ...anyEvent, can_manage_projects: true })
+  const managerAccess = await getEventManagerAccess(db, eventId, session)
+  if (managerAccess.ok) {
+    return NextResponse.json({ ...managerAccess.event, can_manage_projects: true })
   }
 
   // Try as owner first
@@ -95,7 +87,8 @@ export async function PATCH(
     if (!existing) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
-    if (existing.user_id !== session.userId && !session.isAdmin) {
+    const access = await getEventManagerAccess(db0, eventId, session, { select: 'id, user_id' })
+    if (!access.ok) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
   }
@@ -197,7 +190,8 @@ export async function DELETE(
   if (!existing) {
     return NextResponse.json({ error: 'Event not found' }, { status: 404 })
   }
-  if (existing.user_id !== session.userId && !session.isAdmin) {
+  const access = await getEventManagerAccess(db, eventId, session, { select: 'id, user_id' })
+  if (!access.ok) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

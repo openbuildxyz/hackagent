@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUserWithRole } from '@/lib/session'
+import { getEventManagerAccess } from '@/lib/event-access'
 
 export async function GET(
   _request: NextRequest,
@@ -15,13 +16,11 @@ export async function GET(
   const db = createServiceClient()
 
   // OPE-25: admins can manage any event; others must own it.
-  let eventQuery = db.from('events').select('models, web3_enabled').eq('id', eventId)
-  if (!session.isAdmin) eventQuery = eventQuery.eq('user_id', session.userId)
-  const { data: event } = await eventQuery.maybeSingle()
-
-  if (!event) {
-    return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-  }
+  const access = await getEventManagerAccess<{ id: string; user_id: string; models: string[]; web3_enabled: boolean }>(
+    db, eventId, session, { select: 'id, user_id, models, web3_enabled' }
+  )
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+  const event = access.event
 
   const { count: projectCount } = await db
     .from('projects')

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
-import { getSessionUser } from '@/lib/session'
+import { getSessionUserWithRole } from '@/lib/session'
 import { scoreProject, enrichProject } from '@/lib/ai'
 import { deductCredits } from '@/lib/credits'
+import { isEventManager } from '@/lib/event-access'
 
 // Allow up to 5 minutes on Vercel (prevents 10 s default timeout cutting the job)
 export const maxDuration = 300
@@ -14,22 +15,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'eventId required' }, { status: 400 })
   }
 
-  const session = await getSessionUser()
+  const session = await getSessionUserWithRole()
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const db = createServiceClient()
 
-  // Validate user owns event
+  // Validate event manager access: owner, platform admin, or co-organizer.
   const { data: event } = await db
     .from('events')
     .select('*')
     .eq('id', eventId)
-    .eq('user_id', session.userId)
     .single()
 
-  if (!event) {
+  if (!event || !(await isEventManager(db, eventId, session))) {
     return NextResponse.json({ error: 'Event not found' }, { status: 404 })
   }
 

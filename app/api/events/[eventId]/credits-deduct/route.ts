@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUserWithRole } from '@/lib/session'
 import { deductCredits } from '@/lib/credits'
+import { getEventManagerAccess } from '@/lib/event-access'
 
 // POST /api/events/[eventId]/credits-deduct
 // Deducts credits for running AI analysis on all projects in an event
@@ -16,11 +17,11 @@ export async function POST(
   const db = createServiceClient()
 
   // Verify event ownership (OPE-25: admins can manage any event)
-  let eventQuery = db.from('events').select('id, models, web3_enabled').eq('id', eventId)
-  if (!session.isAdmin) eventQuery = eventQuery.eq('user_id', session.userId)
-  const { data: event } = await eventQuery.maybeSingle()
-
-  if (!event) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+  const access = await getEventManagerAccess<{ id: string; user_id: string; models: string[]; web3_enabled: boolean }>(
+    db, eventId, session, { select: 'id, user_id, models, web3_enabled' }
+  )
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+  const event = access.event
 
   // Count projects
   const { count: projectCount } = await db

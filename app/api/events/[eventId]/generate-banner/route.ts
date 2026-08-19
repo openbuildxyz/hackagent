@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUserWithRole } from '@/lib/session'
+import { getEventManagerAccess } from '@/lib/event-access'
 
 const MAX_GENERATIONS_PER_EVENT = 3
 const POE_API_BASE = (process.env.POE_API_URL || 'https://api.poe.com/v1').replace(/\/+$/, '')
@@ -28,9 +29,8 @@ export async function POST(
   if (evErr || !event) {
     return NextResponse.json({ error: 'Event not found' }, { status: 404 })
   }
-  if (!session.isAdmin && event.user_id !== session.userId) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const access = await getEventManagerAccess(db, eventId, session)
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
   // Quota check (column added by migration 031). Do not silently treat a missing
   // column as 0; that burns image credits and never persists quota usage.

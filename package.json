@@ -20,6 +20,7 @@
     "test:team-rejected-reapply": "node scripts/test-team-rejected-reapply.mjs",
     "test:project-submit-edit-before-deadline": "node scripts/test-project-submit-edit-before-deadline.mjs",
     "test:manager-project-edit": "node scripts/test-manager-project-edit.mjs",
+    "test:event-co-organizer-permissions": "node scripts/test-event-co-organizer-permissions.mjs",
     "test:skill-md": "node scripts/test-skill-md.mjs",
     "test:review-progress": "node scripts/test-review-progress.mjs",
     "validate:open-source": "node scripts/validate-open-source.mjs"

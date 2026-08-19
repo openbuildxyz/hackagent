@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUserWithRole } from '@/lib/session'
 import { analyzeWeb3 } from '@/lib/web3insight'
+import { getEventManagerAccess } from '@/lib/event-access'
 
 const DEFAULT_LIMIT = 200
 
@@ -48,24 +49,10 @@ export async function POST(
     : []
 
   const db = createServiceClient()
-  const { data: event } = await db
-    .from('events')
-    .select('id, user_id, web3_enabled')
-    .eq('id', eventId)
-    .single()
-
-  if (!event) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-
-  const isOwner = event.user_id === session.userId
-  if (!session.isAdmin && !isOwner) {
-    const { data: reviewer } = await db
-      .from('event_reviewers')
-      .select('id')
-      .eq('event_id', eventId)
-      .eq('user_id', session.userId)
-      .single()
-    if (!reviewer) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const access = await getEventManagerAccess<{ id: string; user_id: string; web3_enabled: boolean }>(
+    db, eventId, session, { select: 'id, user_id, web3_enabled' }
+  )
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
   let query = db
     .from('projects')

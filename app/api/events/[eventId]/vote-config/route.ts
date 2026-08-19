@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUser } from '@/lib/session'
+import { isEventManager } from '@/lib/event-access'
 
 type Params = { params: Promise<{ eventId: string }> }
 
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     .single()
 
   if (error || !event) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  if (event.user_id !== user.userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!(await isEventManager(supabase, eventId, user))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   return NextResponse.json({ public_vote: event.public_vote ?? null })
 }
@@ -35,7 +36,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     .single()
 
   if (fetchErr || !event) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  if (event.user_id !== user.userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!(await isEventManager(supabase, eventId, user))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await req.json()
   const { error: updateErr } = await supabase

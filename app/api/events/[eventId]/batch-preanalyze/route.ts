@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { getSessionUserWithRole } from '@/lib/session'
 import { scoreProject } from '@/lib/ai'
 import { buildWeb3InsightSummary } from '@/lib/web3insight'
+import { getEventManagerAccess } from '@/lib/event-access'
 
 type ProjectRow = {
   id: string
@@ -34,11 +35,11 @@ export async function POST(
   const db = createServiceClient()
 
   // Verify ownership (OPE-25: admins can manage any event)
-  let eventQuery = db.from('events').select('id, name, models, dimensions, web3_enabled, user_id').eq('id', eventId)
-  if (!session.isAdmin) eventQuery = eventQuery.eq('user_id', session.userId)
-  const { data: event } = await eventQuery.maybeSingle()
-
-  if (!event) return NextResponse.json({ error: '活动不存在或无权操作' }, { status: 404 })
+  const access = await getEventManagerAccess<{
+    id: string; user_id: string; name: string; models: unknown; dimensions: unknown; web3_enabled: boolean
+  }>(db, eventId, session, { select: 'id, name, models, dimensions, web3_enabled, user_id' })
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+  const event = access.event
 
   const body = await request.json().catch(() => ({})) as { force?: boolean }
   const force = body.force === true

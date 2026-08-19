@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUserWithRole } from '@/lib/session'
+import { getEventManagerAccess } from '@/lib/event-access'
 
 type RunMode = 'fresh' | 'retry_failed' | 'rerun_module' | 'rerun_all'
 type RunModule = 'sonar' | 'web3' | 'models' | 'all'
@@ -32,15 +33,17 @@ export async function POST(
   const db = createServiceClient()
 
   // Verify ownership or reviewer access (OPE-25: admins can manage any event)
-  const { data: event } = await db.from('events').select('id, models, user_id').eq('id', eventId).single()
-  if (!event) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-
-  // Allow admin, owner, or reviewer
-  const isOwner = event.user_id === session.userId
-  if (!session.isAdmin && !isOwner) {
+  const managerAccess = await getEventManagerAccess<{ id: string; models: unknown; user_id: string }>(
+    db, eventId, session, { select: 'id, models, user_id' }
+  )
+  if (!managerAccess.ok) {
     const { data: reviewer } = await db.from('event_reviewers').select('id').eq('event_id', eventId).eq('user_id', session.userId).single()
-    if (!reviewer) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!reviewer) return NextResponse.json({ error: managerAccess.error }, { status: managerAccess.status })
   }
+  const event = managerAccess.ok
+    ? managerAccess.event
+    : (await db.from('events').select('id, models, user_id').eq('id', eventId).single()).data
+  if (!event) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
 
   const body = await req.json().catch(() => ({})) as EnqueueBody
   const mode: RunMode = body.force ? 'rerun_all' : (body.mode ?? 'fresh')

@@ -6,6 +6,7 @@ import { normalizeHttpUrl, normalizeTeamSize, validateProjectInput } from '@/lib
 import { getChatConfigForModelKey } from '@/lib/zenmux'
 import { MODEL_IDS } from '@/lib/models'
 import { recordSubmissionVersion } from '@/lib/submissions'
+import { getEventManagerAccess } from '@/lib/event-access'
 
 const MAX_DESCRIPTION = 1000
 
@@ -210,14 +211,15 @@ export async function GET(
   const { eventId } = await params
   const db = createServiceClient()
 
-  // OPE-25: admin bypass — 任意活动可读项目；否则必须是 owner 或 reviewer
-  if (!session.isAdmin) {
-    const { data: event } = await db.from('events').select('id').eq('id', eventId).eq('user_id', session.userId).single()
-    const { data: reviewer } = event ? { data: null } : await db.from('event_reviewers').select('event_id').eq('event_id', eventId).eq('user_id', session.userId).single()
-    if (!event && !reviewer) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  } else {
-    const { data: event } = await db.from('events').select('id').eq('id', eventId).is('deleted_at', null).maybeSingle()
-    if (!event) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  const managerAccess = await getEventManagerAccess(db, eventId, session, { select: 'id, user_id' })
+  if (!managerAccess.ok) {
+    const { data: reviewer } = await db
+      .from('event_reviewers')
+      .select('event_id')
+      .eq('event_id', eventId)
+      .eq('user_id', session.userId)
+      .single()
+    if (!reviewer) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
   const { data: projects } = await db
@@ -412,27 +414,9 @@ export async function POST(
     return NextResponse.json({ project, version })
   }
 
-  // Admin bulk import flow — requires event ownership (OPE-25: admin bypass)
-  if (!session.isAdmin) {
-    const { data: event } = await db
-      .from('events')
-      .select('id')
-      .eq('id', eventId)
-      .eq('user_id', session.userId)
-      .single()
-    if (!event) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-    }
-  } else {
-    const { data: event } = await db
-      .from('events')
-      .select('id')
-      .eq('id', eventId)
-      .is('deleted_at', null)
-      .maybeSingle()
-    if (!event) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-    }
+  const managerAccess = await getEventManagerAccess(db, eventId, session, { select: 'id, user_id' })
+  if (!managerAccess.ok) {
+    return NextResponse.json({ error: managerAccess.error }, { status: managerAccess.status })
   }
 
   const { projects } = body as { projects: unknown[] }
@@ -566,17 +550,12 @@ export async function DELETE(
   const db = createServiceClient()
 
   // OPE-25: admin bypass — 任意活动可清项目；否则必须是 owner
-  const { data: event } = await db
-    .from('events')
-    .select('id, user_id, status')
-    .eq('id', eventId)
-    .is('deleted_at', null)
-    .maybeSingle()
-  if (!event) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  const isOwner = event.user_id === session.userId
-  if (!isOwner && !session.isAdmin) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const access = await getEventManagerAccess<{ id: string; user_id: string; status: string }>(
+    db, eventId, session, { select: 'id, user_id, status' }
+  )
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+  const event = access.event
+  const isOwner = access.isOwner
   if (event.status === 'done') {
     return NextResponse.json({ error: 'Projects cannot be deleted after judging is complete' }, { status: 403 })
   }

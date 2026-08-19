@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/session'
 import { createServiceClient } from '@/lib/supabase'
 import { getZenmuxApiKey, getZenmuxChatApiBase } from '@/lib/zenmux'
+import { isEventManager } from '@/lib/event-access'
 
 const AI_API_BASE = getZenmuxChatApiBase()
 const AI_API_URL = `${AI_API_BASE}/chat/completions`
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
   if (eventError || !event) {
     return NextResponse.json({ error: 'Event not found' }, { status: 404 })
   }
-  if (event.user_id !== user.userId) {
+  if (!(await isEventManager(supabase, event_id, user))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

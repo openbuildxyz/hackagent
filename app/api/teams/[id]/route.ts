@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/session'
 import { createServiceClient } from '@/lib/supabase'
 import { teamMutableStatus } from '@/lib/event-status'
+import { isEventManager } from '@/lib/event-access'
 
 // GET /api/teams/[id] — team detail with members and pending requests
 //
@@ -41,6 +42,7 @@ export async function GET(
   const requests = Array.isArray(team.team_join_requests) ? team.team_join_requests : []
 
   const isLeader = team.leader_id === user.userId
+  const isManager = await isEventManager(supabase, team.event_id, user)
   const isMember = isLeader || members.some((m: { user_id: string }) => m.user_id === user.userId)
 
   // Strip email from member rows for non-members.
@@ -54,7 +56,7 @@ export async function GET(
   // Only leader sees all join requests. Non-leader members see none.
   // Non-members see only their own request (for UI state), without other applicants.
   let safeRequests: unknown[]
-  if (isLeader) {
+  if (isLeader || isManager) {
     safeRequests = requests
   } else if (isMember) {
     safeRequests = []
@@ -90,12 +92,12 @@ export async function PUT(
   // Verify ownership
   const { data: team, error: fetchError } = await supabase
     .from('teams')
-    .select('leader_id, status, events!inner(status)')
+    .select('leader_id, event_id, status, events!inner(status)')
     .eq('id', id)
     .single()
 
   if (fetchError || !team) return NextResponse.json({ error: 'Team not found' }, { status: 404 })
-  if (team.leader_id !== user.userId) {
+  if (team.leader_id !== user.userId && !(await isEventManager(supabase, team.event_id, user))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
   const eventRow = Array.isArray(team.events) ? team.events[0] : team.events
@@ -150,12 +152,12 @@ export async function DELETE(
 
   const { data: team, error: fetchError } = await supabase
     .from('teams')
-    .select('leader_id, status, events!inner(status)')
+    .select('leader_id, event_id, status, events!inner(status)')
     .eq('id', id)
     .single()
 
   if (fetchError || !team) return NextResponse.json({ error: 'Team not found' }, { status: 404 })
-  if (team.leader_id !== user.userId) {
+  if (team.leader_id !== user.userId && !(await isEventManager(supabase, team.event_id, user))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
   const eventRow = Array.isArray(team.events) ? team.events[0] : team.events

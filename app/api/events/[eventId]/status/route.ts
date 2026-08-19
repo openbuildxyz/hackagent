@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { getSessionUserWithRole } from '@/lib/session'
 import { canTransitionEventStatus, deriveEventStatus, type EventStatus } from '@/lib/event-status'
 import { sendEventCancelledEmail } from '@/lib/mail'
+import { getEventManagerAccess } from '@/lib/event-access'
 
 const ACTION_TARGET: Record<string, EventStatus> = {
   publish: 'recruiting',
@@ -24,14 +25,23 @@ export async function POST(
   const { eventId } = await params
   const db = createServiceClient()
 
-  const { data: event } = await db
-    .from('events')
-    .select('id, user_id, name, status, models, mode, registration_open_at, start_time, registration_deadline, submission_deadline, judging_end, result_announced_at, registration_config')
-    .eq('id', eventId)
-    .single()
-
-  if (!event) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-  if (event.user_id !== session.userId && !session.isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const access = await getEventManagerAccess<{
+    id: string
+    user_id: string
+    name: string
+    status: EventStatus
+    models: unknown
+    mode: string | null
+    registration_open_at: string | null
+    start_time: string | null
+    registration_deadline: string | null
+    submission_deadline: string | null
+    judging_end: string | null
+    result_announced_at: string | null
+    registration_config: unknown
+  }>(db, eventId, session, { select: 'id, user_id, name, status, models, mode, registration_open_at, start_time, registration_deadline, submission_deadline, judging_end, result_announced_at, registration_config' })
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+  const event = access.event
 
   const body = await req.json().catch(() => ({})) as { action?: string; status?: EventStatus; reason?: string }
   const target = body.status ?? (body.action ? ACTION_TARGET[body.action] : undefined)

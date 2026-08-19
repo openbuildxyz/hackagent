@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUserWithRole } from '@/lib/session'
 import { recordAdminAction } from '@/lib/admin-audit'
+import { getEventManagerAccess } from '@/lib/event-access'
 
 // PATCH — event owner or admin: approve or reject a registration
 export async function PATCH(
@@ -27,10 +28,9 @@ export async function PATCH(
   if (!event) {
     return NextResponse.json({ error: 'Event not found' }, { status: 404 })
   }
-  const isOwner = event.user_id === session.userId
-  if (!isOwner && !session.isAdmin) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const access = await getEventManagerAccess(db, eventId, session, { select: 'id, user_id' })
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+  const isOwner = access.isOwner
 
   const body = await request.json()
   const { action, reject_reason } = body as { action: 'approve' | 'reject'; reject_reason?: string }

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { isEventManager } from '@/lib/event-access'
 
 export type ProjectAccessResult =
   | { ok: true; project: { id: string; event_id: string; event_owner_id: string | null } }
@@ -34,7 +35,7 @@ export async function assertProjectReadable(
   if (!project) return { ok: false, status: 404, error: 'Not found' }
 
   const eventOwnerId = (project.events as { user_id?: string } | null)?.user_id ?? null
-  if (eventOwnerId === session.userId) {
+  if (await isEventManager(db, project.event_id, session)) {
     return { ok: true, project: { id: project.id, event_id: project.event_id, event_owner_id: eventOwnerId } }
   }
 
@@ -46,21 +47,6 @@ export async function assertProjectReadable(
     .in('invite_status', ['accepted', 'active'])
     .maybeSingle()
   if (reviewer) {
-    return { ok: true, project: { id: project.id, event_id: project.event_id, event_owner_id: eventOwnerId } }
-  }
-
-  // Admin bypass (OPE-25 convention: users.role is text[] containing 'admin')
-  const { data: userRow } = await db
-    .from('users')
-    .select('role')
-    .eq('id', session.userId)
-    .maybeSingle()
-  const role: string[] = Array.isArray(userRow?.role)
-    ? (userRow!.role as string[])
-    : userRow?.role
-      ? [String(userRow.role)]
-      : []
-  if (role.includes('admin')) {
     return { ok: true, project: { id: project.id, event_id: project.event_id, event_owner_id: eventOwnerId } }
   }
 

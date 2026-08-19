@@ -4,6 +4,7 @@ import { getSessionUser } from '@/lib/session'
 import { scoreProject } from '@/lib/ai'
 import { analyzeWeb3, buildWeb3InsightSummary } from '@/lib/web3insight'
 import { analyzeCodeWithLLM, computeFakeCodeFlags } from '@/lib/code-analysis'
+import { isEventManager } from '@/lib/event-access'
 
 type RunMode = 'fresh' | 'retry_failed' | 'rerun_module' | 'rerun_all'
 type RunModule = 'sonar' | 'web3' | 'models' | 'all'
@@ -231,8 +232,7 @@ export async function POST(
 
   // Authorize: event owner OR reviewer of the event (skip for worker calls)
   if (!isWorkerCall) {
-    const eventOwnerId = (event as { user_id?: string }).user_id
-    if (eventOwnerId !== effectiveUserId) {
+    if (!(await isEventManager(db, project.event_id, { userId: effectiveUserId }))) {
       const { data: reviewer } = await db
         .from('event_reviewers')
         .select('id')

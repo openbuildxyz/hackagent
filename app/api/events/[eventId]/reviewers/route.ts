@@ -4,6 +4,7 @@ import { getSessionUser } from '@/lib/session'
 import { sendReviewerInviteEmail, sendReviewerNotifyEmail } from '@/lib/mail'
 import { randomBytes } from 'crypto'
 import { initReviewerScores } from '@/lib/reviewer-scores'
+import { getEventManagerAccess } from '@/lib/event-access'
 
 // GET /api/events/[eventId]/reviewers - list reviewers with status
 export async function GET(
@@ -19,14 +20,8 @@ export async function GET(
   const db = createServiceClient()
 
   // Verify event ownership or reviewer membership (OPE-22)
-  const { data: event } = await db
-    .from('events')
-    .select('id, user_id')
-    .eq('id', eventId)
-    .eq('user_id', session.userId)
-    .maybeSingle()
-
-  const isOwner = !!event
+  const managerAccess = await getEventManagerAccess(db, eventId, { userId: session.userId })
+  const isOwner = managerAccess.ok
   let isReviewer = false
   if (!isOwner) {
     const { data: rev } = await db
@@ -130,16 +125,11 @@ export async function POST(
   const db = createServiceClient()
 
   // Verify event ownership
-  const { data: event } = await db
-    .from('events')
-    .select('id, user_id, name')
-    .eq('id', eventId)
-    .eq('user_id', session.userId)
-    .single()
-
-  if (!event) {
-    return NextResponse.json({ error: '活动不存在或无权限' }, { status: 404 })
-  }
+  const access = await getEventManagerAccess<{ id: string; user_id: string; name: string }>(
+    db, eventId, { userId: session.userId }, { select: 'id, user_id, name' }
+  )
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+  const event = access.event
 
   // Get inviter email for the mail
   const { data: inviter } = await db.from('users').select('email').eq('id', session.userId).single()
@@ -218,4 +208,3 @@ export async function POST(
 
   return NextResponse.json({ id: data.id, type: 'invite_sent', email })
 }
-

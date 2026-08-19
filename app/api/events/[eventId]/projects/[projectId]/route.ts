@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { getSessionUserWithRole } from '@/lib/session'
 import { recordAdminAction } from '@/lib/admin-audit'
 import { validateProjectInput } from '@/lib/validate-project'
+import { getEventManagerAccess } from '@/lib/event-access'
 
 // PATCH /api/events/[eventId]/projects/[projectId]
 export async function PATCH(
@@ -23,8 +24,9 @@ export async function PATCH(
     .maybeSingle()
   if (!event) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
 
-  const isOwner = event.user_id === session.userId
-  if (!isOwner && !session.isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const access = await getEventManagerAccess(db, eventId, session, { select: 'id, user_id' })
+  if (!access.ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const isOwner = access.isOwner
 
   const { data: project } = await db
     .from('projects')

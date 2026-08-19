@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUserWithRole } from '@/lib/session'
+import { getEventManagerAccess } from '@/lib/event-access'
 
 function normalizeExtraFields(extraFields: unknown, trackId?: unknown): Record<string, unknown> {
   const normalized = extraFields && typeof extraFields === 'object' && !Array.isArray(extraFields)
@@ -46,28 +47,9 @@ export async function GET(
   const { eventId } = await params
   const db = createServiceClient()
 
-  // OPE-25: admin bypass — 任意活动可读报名；否则必须是 owner
-  if (!session.isAdmin) {
-    const { data: event } = await db
-      .from('events')
-      .select('id')
-      .eq('id', eventId)
-      .eq('user_id', session.userId)
-      .is('deleted_at', null)
-      .single()
-
-    if (!event) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-  } else {
-    // admin 仍需 event 存在
-    const { data: event } = await db
-      .from('events')
-      .select('id')
-      .eq('id', eventId)
-      .is('deleted_at', null)
-      .maybeSingle()
-    if (!event) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+  const access = await getEventManagerAccess(db, eventId, session, { select: 'id, user_id' })
+  if (!access.ok) {
+    return NextResponse.json({ error: access.error }, { status: access.status })
   }
 
   const { data: registrations, error } = await db

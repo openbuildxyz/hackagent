@@ -362,13 +362,22 @@ export default function ProjectsTable({
   const openEdit = (p: Project) => {
     setEditProject(p)
     setEditForm({ name: p.name, github_url: p.github_url ?? '', demo_url: p.demo_url ?? '', description: p.description ?? '', team_name: p.team_name ?? '', track_ids: p.track_ids ?? [], logo_url: p.logo_url ?? null })
-    setEditExtra({ ...(p.extra_fields ?? {}) })
+    setEditExtra({
+      project_website: p.extra_fields?.project_website ?? '',
+      demo_video_url: p.extra_fields?.demo_video_url ?? '',
+      ...(p.extra_fields ?? {}),
+    })
   }
   const saveEdit = async () => {
     if (!editProject) return
     setSaving(true)
     try {
-      const payload = { ...editForm, extra_fields: { ...(editProject.extra_fields ?? {}), ...editExtra } }
+      const cleanExtraFields = Object.fromEntries(
+        Object.entries(editExtra)
+          .map(([key, value]) => [key, value.trim()] as const)
+          .filter(([, value]) => value.length > 0)
+      )
+      const payload = { ...editForm, extra_fields: Object.keys(cleanExtraFields).length > 0 ? cleanExtraFields : null }
       const res = await fetch(`/api/events/${eventId}/projects/${editProject.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
       })
@@ -568,7 +577,7 @@ export default function ProjectsTable({
               <TableHead>Demo</TableHead>
               {showPitch && <TableHead>Pitch</TableHead>}
               {showTags && <TableHead>{headerTags}</TableHead>}
-              {visibleExtraKeys.map(k => <TableHead key={k}>{k}</TableHead>)}
+              {visibleExtraKeys.map(k => <TableHead key={k}>{fl[k] || k}</TableHead>)}
               {hasScores && (
                 <TableHead>
                   <button className="flex items-center gap-1 font-medium" onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}>
@@ -1105,7 +1114,7 @@ export default function ProjectsTable({
                   <p className="text-xs text-fg-subtle mb-2">扩展字段</p>
                   {Object.entries(editExtra).map(([k, v]) => (
                     <div key={k} className="space-y-1 mb-2">
-                      <Label className="text-fg-muted text-xs">{k}</Label>
+                      <Label className="text-fg-muted text-xs">{fl[k] || k}</Label>
                       <Input value={v} onChange={e => setEditExtra(ex => ({ ...ex, [k]: e.target.value }))} />
                     </div>
                   ))}
