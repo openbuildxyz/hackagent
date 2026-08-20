@@ -12,8 +12,9 @@ const table = read('app/(dashboard)/events/[id]/ProjectsTable.tsx')
 const eventClient = read('app/(dashboard)/events/[id]/EventDetailClient.tsx')
 
 assert.match(patchRoute, /getSessionUserWithRole/, 'project PATCH must load roles for admin authorization')
-assert.match(patchRoute, /const isOwner = event\.user_id === session\.userId/, 'project PATCH must identify event ownership')
-assert.match(patchRoute, /if \(!isOwner && !session\.isAdmin\)/, 'project PATCH must allow only the owner or platform admin')
+assert.match(patchRoute, /getEventManagerAccess/, 'project PATCH must use shared event-manager authorization')
+assert.match(patchRoute, /if \(!access\.ok\)/, 'project PATCH must reject users without event-manager access')
+assert.match(patchRoute, /const isOwner = access\.isOwner/, 'project PATCH must preserve owner-specific audit behavior')
 assert.match(patchRoute, /validateProjectInput\(/, 'project PATCH must use shared project validation')
 for (const field of ['name', 'github_url', 'demo_url', 'description', 'team_name']) {
   assert.match(patchRoute, new RegExp(`\\b${field}\\b`), `project PATCH must handle ${field}`)

@@ -1,14 +1,14 @@
-type ChatProvider = 'zenmux' | 'gpt' | 'tencent'
+type ChatProvider = 'zenmux' | 'kimi' | 'glm'
 
 const DEFAULT_CHAT_API_BASE = 'https://zenmux.ai/api/v1'
 const DEFAULT_VERTEX_API_BASE = 'https://zenmux.ai/api/vertex-ai'
-const DEFAULT_TENCENT_API_BASE = 'https://api.lkeap.cloud.tencent.com/plan/v3'
-const DEFAULT_GPT_API_BASE = 'https://router.ianxu.me/v1'
+const DEFAULT_KIMI_API_BASE = 'https://api.kimi.com/coding/v1'
+const DEFAULT_GLM_API_BASE = 'https://open.bigmodel.cn/api/coding/paas/v4'
 
-// Tencent LKEAP hosts minimax/kimi/glm (unprefixed model ids). deepseek + claude
-// + gemini stay on ZenMux pay-as-you-go; gpt4o on the gpt router.
-const TENCENT_MODEL_KEYS = new Set(['minimax', 'kimi', 'glm'])
-const GPT_MODEL_KEYS = new Set(['gpt4o'])
+// Kimi and GLM use isolated provider credentials. All other review models use
+// the shared ZenMux pay-as-you-go gateway.
+const KIMI_MODEL_KEYS = new Set(['kimi'])
+const GLM_MODEL_KEYS = new Set(['glm'])
 
 function cleanBaseUrl(url: string): string {
   return url.replace(/\/+$/, '')
@@ -32,35 +32,35 @@ export function getZenmuxChatApiBase(): string {
   )
 }
 
-export function getTencentApiKey(): string {
-  return process.env.TENCENT_MODEL_API_KEY || ''
+export function getKimiApiKey(): string {
+  return process.env.KIMI_MODEL_API_KEY || ''
 }
 
-export function getTencentChatApiBase(): string {
-  return cleanBaseUrl(process.env.TENCENT_MODEL_API_URL || DEFAULT_TENCENT_API_BASE)
+export function getKimiChatApiBase(): string {
+  return cleanBaseUrl(process.env.KIMI_MODEL_API_URL || DEFAULT_KIMI_API_BASE)
 }
 
-export function getGptApiKey(): string {
-  return process.env.GPT_MODEL_API_KEY || ''
+export function getGlmApiKey(): string {
+  return process.env.GLM_MODEL_API_KEY || ''
 }
 
-export function getGptChatApiBase(): string {
-  return cleanBaseUrl(process.env.GPT_MODEL_API_URL || DEFAULT_GPT_API_BASE)
+export function getGlmChatApiBase(): string {
+  return cleanBaseUrl(process.env.GLM_MODEL_API_URL || DEFAULT_GLM_API_BASE)
 }
 
 export function getChatProviderForModelKey(modelKey: string): ChatProvider {
-  if (TENCENT_MODEL_KEYS.has(modelKey)) return 'tencent'
-  if (GPT_MODEL_KEYS.has(modelKey)) return 'gpt'
+  if (KIMI_MODEL_KEYS.has(modelKey)) return 'kimi'
+  if (GLM_MODEL_KEYS.has(modelKey)) return 'glm'
   return 'zenmux'
 }
 
 export function getChatConfigForModelKey(modelKey: string): { apiUrl: string; apiKey: string; provider: ChatProvider } {
   const provider = getChatProviderForModelKey(modelKey)
-  if (provider === 'tencent') {
-    return { provider, apiUrl: getTencentChatApiBase(), apiKey: getTencentApiKey() }
+  if (provider === 'kimi') {
+    return { provider, apiUrl: getKimiChatApiBase(), apiKey: getKimiApiKey() }
   }
-  if (provider === 'gpt') {
-    return { provider, apiUrl: getGptChatApiBase(), apiKey: getGptApiKey() }
+  if (provider === 'glm') {
+    return { provider, apiUrl: getGlmChatApiBase(), apiKey: getGlmApiKey() }
   }
   return { provider, apiUrl: getZenmuxChatApiBase(), apiKey: getZenmuxApiKey() }
 }
@@ -82,7 +82,7 @@ export function getZenmuxVertexApiBase(): string {
 }
 
 export function getTemperatureForModel(modelId: string, preferred: number): number {
-  // Kimi K2.5 (Tencent LKEAP, reasoning model) only reliably accepts temperature 1.
-  if (modelId === 'kimi-k2.5') return 1
+  // Kimi for Coding only reliably accepts temperature 1.
+  if (modelId === 'kimi-for-coding') return 1
   return preferred
 }

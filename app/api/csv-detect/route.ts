@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { MODEL_IDS } from '@/lib/models'
 import { getSessionUser } from '@/lib/session'
 import { getChatConfigForModelKey } from '@/lib/zenmux'
 
 const { apiUrl: API_BASE, apiKey: API_KEY } = getChatConfigForModelKey('gpt4o')
-const MODEL = 'gpt-5.5'
+const MODEL = MODEL_IDS.gpt4o
 
 export interface ColumnMapping {
   name: string | null

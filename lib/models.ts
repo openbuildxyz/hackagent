@@ -5,8 +5,8 @@ export const MODEL_NAMES: Record<string, string> = {
   gemini: 'Gemini 2.5 Flash',
   gpt4o: 'GPT-5.5',
   deepseek: 'DeepSeek V3.2',
-  kimi: 'Kimi K2.5',
-  glm: 'GLM 5',
+  kimi: 'Kimi for Coding',
+  glm: 'GLM 5.2',
 }
 
 export const MODEL_COLORS: Record<string, string> = {
@@ -34,12 +34,12 @@ export const MODEL_CREDITS: Record<string, number> = {
 
 export const MODEL_IDS: Record<string, string> = {
   claude: 'anthropic/claude-sonnet-4.6',
-  minimax: 'minimax-m2.7',
+  minimax: 'minimax/minimax-m2.7',
   gemini: 'google/gemini-2.5-flash',
-  gpt4o: 'gpt-5.5',
+  gpt4o: 'openai/gpt-5.5',
   deepseek: 'deepseek/deepseek-v3.2',
-  kimi: 'kimi-k2.5',
-  glm: 'glm-5',
+  kimi: 'kimi-for-coding',
+  glm: 'glm-5.2',
 }
 
 export const ALL_MODEL_KEYS: string[] = [

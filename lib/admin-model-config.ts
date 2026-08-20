@@ -2,9 +2,8 @@ import { ALL_MODEL_KEYS, MODEL_CREDITS, MODEL_IDS, MODEL_NAMES } from './models'
 import {
   getChatProviderForModelKey,
   getChatConfigForModelKey,
-  getGptChatApiBase,
-  getTencentApiKey,
-  getTencentChatApiBase,
+  getGlmChatApiBase,
+  getKimiChatApiBase,
   getTemperatureForModel,
   getZenmuxApiKey,
   getZenmuxChatApiBase,
@@ -77,22 +76,22 @@ function allConfigured(names: string[]): boolean {
 }
 
 function providerBaseUrl(provider: string): string {
-  if (provider === 'tencent') return getTencentChatApiBase()
-  if (provider === 'gpt') return getGptChatApiBase()
+  if (provider === 'kimi') return getKimiChatApiBase()
+  if (provider === 'glm') return getGlmChatApiBase()
   return getZenmuxChatApiBase()
 }
 
 function providerEnv(provider: string): AdminEnvVarStatus[] {
-  if (provider === 'tencent') {
+  if (provider === 'kimi') {
     return [
-      envStatus('TENCENT_MODEL_API_KEY'),
-      envStatus('TENCENT_MODEL_API_URL', false),
+      envStatus('KIMI_MODEL_API_KEY'),
+      envStatus('KIMI_MODEL_API_URL', false),
     ]
   }
-  if (provider === 'gpt') {
+  if (provider === 'glm') {
     return [
-      envStatus('GPT_MODEL_API_KEY'),
-      envStatus('GPT_MODEL_API_URL', false),
+      envStatus('GLM_MODEL_API_KEY'),
+      envStatus('GLM_MODEL_API_URL', false),
     ]
   }
   return [
@@ -106,8 +105,8 @@ function providerEnv(provider: string): AdminEnvVarStatus[] {
 }
 
 function providerConfigured(provider: string): boolean {
-  if (provider === 'tencent') return Boolean(process.env.TENCENT_MODEL_API_KEY)
-  if (provider === 'gpt') return Boolean(process.env.GPT_MODEL_API_KEY)
+  if (provider === 'kimi') return Boolean(process.env.KIMI_MODEL_API_KEY)
+  if (provider === 'glm') return Boolean(process.env.GLM_MODEL_API_KEY)
   return anyConfigured(['ZENMUX_PAY2GO_API_KEY', 'ZENMUX_API_KEY', 'COMMONSTACK_API_KEY'])
 }
 
@@ -133,7 +132,7 @@ export function getAdminModelConfigSnapshot(): AdminModelConfigSnapshot {
       credits: MODEL_CREDITS[key] ?? 1,
       temperature: getTemperatureForModel(modelId, 0.3),
       notes: key === 'kimi'
-        ? 'Kimi K2.5 forces temperature 1 in runtime calls; other review models use 0.3.'
+        ? 'Kimi for Coding forces temperature 1 in runtime calls; other review models use 0.3.'
         : 'Used by project review scoring through lib/ai.ts.',
     }
   })
@@ -142,20 +141,20 @@ export function getAdminModelConfigSnapshot(): AdminModelConfigSnapshot {
     {
       key: 'event-generation',
       name: 'Event Plan Generation',
-      provider: 'tencent',
-      baseUrl: getTencentChatApiBase(),
-      env: providerEnv('tencent'),
-      status: providerConfigured('tencent') ? 'configured' : 'missing',
-      notes: 'Uses minimax-m2.7 for /api/ai/generate-event.',
+      provider: 'zenmux',
+      baseUrl: getZenmuxChatApiBase(),
+      env: providerEnv('zenmux'),
+      status: providerConfigured('zenmux') ? 'configured' : 'missing',
+      notes: 'Uses minimax/minimax-m2.7 through ZenMux for /api/ai/generate-event.',
     },
     {
       key: 'code-analysis',
       name: 'Code Authenticity Analysis',
-      provider: 'tencent',
-      baseUrl: getTencentChatApiBase(),
-      env: [...providerEnv('tencent'), envStatus('GITHUB_TOKEN')],
-      status: providerConfigured('tencent') ? 'configured' : 'missing',
-      notes: 'Uses minimax-m2.7 plus GitHub API; GITHUB_TOKEN is optional but improves rate limits.',
+      provider: 'zenmux',
+      baseUrl: getZenmuxChatApiBase(),
+      env: [...providerEnv('zenmux'), envStatus('GITHUB_TOKEN')],
+      status: providerConfigured('zenmux') ? 'configured' : 'missing',
+      notes: 'Uses minimax/minimax-m2.7 through ZenMux plus GitHub API; GITHUB_TOKEN is optional but improves rate limits.',
     },
     {
       key: 'team-auto-match',
@@ -236,8 +235,8 @@ function redactMessage(message: string): string {
     process.env.ZENMUX_PAY2GO_API_KEY,
     process.env.ZENMUX_API_KEY,
     process.env.COMMONSTACK_API_KEY,
-    process.env.TENCENT_MODEL_API_KEY,
-    process.env.GPT_MODEL_API_KEY,
+    process.env.KIMI_MODEL_API_KEY,
+    process.env.GLM_MODEL_API_KEY,
     process.env.POE_API_KEY,
     process.env.WEB3INSIGHT_TOKEN,
     process.env.SONAR_PROXY_SECRET,
@@ -382,8 +381,10 @@ export async function testAdminModelConnection(target: AdminConnectionTestTarget
 
   switch (target.key) {
     case 'event-generation':
-    case 'code-analysis':
-      return testChatCompletion(target, getTencentChatApiBase(), getTencentApiKey(), MODEL_IDS.minimax)
+    case 'code-analysis': {
+      const { apiUrl, apiKey } = getChatConfigForModelKey('minimax')
+      return testChatCompletion(target, apiUrl, apiKey, MODEL_IDS.minimax)
+    }
     case 'team-auto-match':
       return testChatCompletion(target, getZenmuxChatApiBase(), getZenmuxApiKey(), 'z-ai/glm-4.5-air')
     case 'image-generation':

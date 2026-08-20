@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test": "node --test scripts/test-*.mjs",
     "test:banner-feedback": "node scripts/test-banner-feedback.mjs",
     "test:event-cover-rules": "node scripts/test-event-cover-rules.mjs",
     "test:open-signup-prereg": "node scripts/test-open-signup-prereg.mjs",
@@ -21,6 +22,8 @@
     "test:project-submit-edit-before-deadline": "node scripts/test-project-submit-edit-before-deadline.mjs",
     "test:manager-project-edit": "node scripts/test-manager-project-edit.mjs",
     "test:event-co-organizer-permissions": "node scripts/test-event-co-organizer-permissions.mjs",
+    "test:model-provider-routing": "node scripts/test-model-provider-routing.mjs",
+    "sonar:event": "node scripts/run-sonar-event.mjs",
     "test:skill-md": "node scripts/test-skill-md.mjs",
     "test:review-progress": "node scripts/test-review-progress.mjs",
     "validate:open-source": "node scripts/validate-open-source.mjs"
