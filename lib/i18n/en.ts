@@ -308,6 +308,7 @@ const en = {
   // Project table headers
   'project.header.name': 'Project Name',
   'project.header.team': 'Team',
+  'project.header.submitterEmail': 'Submitter Email',
   'project.header.tags': 'Tags',
 
   // Common

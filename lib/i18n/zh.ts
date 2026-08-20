@@ -308,6 +308,7 @@ const zh = {
   // Project table headers
   'project.header.name': '项目名称',
   'project.header.team': '团队',
+  'project.header.submitterEmail': '提交人邮箱',
   'project.header.tags': '标签',
 
   // Common

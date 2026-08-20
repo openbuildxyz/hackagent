@@ -56,6 +56,7 @@ type Project = {
   demo_url: string | null
   pitch_url: string | null
   team_name: string | null
+  submitter_email?: string | null
   tags: string[] | null
   status: string
   analysis_status: string | null
@@ -573,6 +574,7 @@ export default function ProjectsTable({
               <TableHead className="w-8 text-center text-muted-foreground">#</TableHead>
               <TableHead>{headerName}</TableHead>
               {showTeam && <TableHead>{headerTeam}</TableHead>}
+              {canManage && !reviewerMode && <TableHead>{t('project.header.submitterEmail')}</TableHead>}
               <TableHead>GitHub</TableHead>
               <TableHead>Demo</TableHead>
               {showPitch && <TableHead>Pitch</TableHead>}
@@ -639,6 +641,11 @@ export default function ProjectsTable({
                   {showTeam && (
                     <TableCell className="text-sm text-muted-foreground max-w-[150px]">
                       <span className="truncate block" title={project.team_name ?? ''}>{project.team_name || '—'}</span>
+                    </TableCell>
+                  )}
+                  {canManage && !reviewerMode && (
+                    <TableCell className="text-sm text-muted-foreground max-w-[220px]">
+                      <span className="truncate block" title={project.submitter_email ?? ''}>{project.submitter_email || '—'}</span>
                     </TableCell>
                   )}
                   <TableCell>{renderLink(project.github_url, <Github size={12} />)}</TableCell>

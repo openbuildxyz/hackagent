@@ -230,6 +230,62 @@ export async function GET(
 
   if (!projects?.length) return NextResponse.json(projects ?? [])
 
+  let submitterEmailByProject = new Map<string, string | null>()
+  if (managerAccess.ok) {
+    const projectIds = projects.map(project => project.id)
+    const registrationIds = projects
+      .map(project => project.registration_id as string | null | undefined)
+      .filter((id): id is string => Boolean(id))
+
+    const [{ data: submissions }, { data: registrations }] = await Promise.all([
+      db
+        .from('submissions')
+        .select('project_id, user_id, version')
+        .eq('event_id', eventId)
+        .in('project_id', projectIds),
+      registrationIds.length > 0
+        ? db.from('registrations').select('id, user_id').in('id', registrationIds)
+        : Promise.resolve({ data: [] as Array<{ id: string; user_id: string | null }> }),
+    ])
+
+    const latestSubmitterByProject = new Map<string, { user_id: string | null; version: number }>()
+    for (const submission of submissions ?? []) {
+      const current = latestSubmitterByProject.get(submission.project_id)
+      if (!current || Number(submission.version) > current.version) {
+        latestSubmitterByProject.set(submission.project_id, {
+          user_id: submission.user_id,
+          version: Number(submission.version),
+        })
+      }
+    }
+
+    const registrationUserById = new Map(
+      (registrations ?? []).map(registration => [registration.id, registration.user_id])
+    )
+    const userIdByProject = new Map<string, string>()
+    for (const project of projects) {
+      const submissionUserId = latestSubmitterByProject.get(project.id)?.user_id
+      const registrationUserId = project.registration_id
+        ? registrationUserById.get(project.registration_id as string)
+        : null
+      const userId = submissionUserId ?? registrationUserId
+      if (userId) userIdByProject.set(project.id, userId)
+    }
+
+    const userIds = Array.from(new Set(userIdByProject.values()))
+    const { data: users } = userIds.length > 0
+      ? await db.from('users').select('id, email').in('id', userIds)
+      : { data: [] as Array<{ id: string; email: string | null }> }
+    const emailByUserId = new Map((users ?? []).map(user => [user.id, user.email]))
+
+    submitterEmailByProject = new Map(
+      projects.map(project => [
+        project.id,
+        emailByUserId.get(userIdByProject.get(project.id) ?? '') ?? null,
+      ])
+    )
+  }
+
   const { data: eventConfig } = await db
     .from('events')
     .select('models, sonar_enabled')
@@ -256,6 +312,7 @@ export async function GET(
   return NextResponse.json(projects.map(project => ({
     ...project,
     analysis_progress: progress[project.id],
+    ...(managerAccess.ok ? { submitter_email: submitterEmailByProject.get(project.id) ?? null } : {}),
   })))
 }
 
