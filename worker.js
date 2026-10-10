@@ -8,6 +8,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import fetch from 'node-fetch'
+import { persistedReviewComplete } from './worker/review-outcome.mjs'
 
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -20,7 +21,7 @@ const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN || 'build.openbuild.xyz'
 const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS || '3000')
 const CONCURRENCY = parseInt(process.env.CONCURRENCY || '2')
 const WORKER_ID = `worker-${process.pid}`
-const ZENMUX_COOLDOWN_MS = 5.1 * 60 * 60 * 1000 // 5.1 hours
+const ZENMUX_COOLDOWN_MS = 60_000 // Brief backoff for transient gateway throttling
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !INTERNAL_API_SECRET) {
   throw new Error('Missing required worker env: SUPABASE_URL, SUPABASE_SERVICE_KEY/SUPABASE_SERVICE_ROLE_KEY, INTERNAL_API_SECRET/WORKER_SECRET')
@@ -48,9 +49,8 @@ function safeErrorMessage(err) {
 }
 
 function isZenmuxQuotaError(msg) {
-  const m = (msg || '').toLowerCase()
-  return m.includes('429') || m.includes('quota') || m.includes('rate limit') ||
-    m.includes('too many requests') || m.includes('credits') || m.includes('insufficient')
+  const text = (msg || '').toLowerCase()
+  return text.includes('zenmux') && /429|rate limit|too many requests/.test(text)
 }
 
 function requireSonarConfig() {
@@ -119,6 +119,7 @@ async function markQueueDone(jobId) {
   await assertDb(
     await db.from('analysis_queue').update({
       status: 'done',
+      error: null,
       completed_at: new Date().toISOString(),
     }).eq('id', jobId),
     'Failed to mark analysis queue job done'
@@ -342,10 +343,12 @@ async function processJob(job) {
     }
 
     const result = await res.json()
+    if (result.success !== true) throw new Error(safeErrorMessage(result.error || JSON.stringify(result.errors || result)))
     console.log(`[${new Date().toISOString()}] Done job ${job.id}: success=${result.success}`)
 
     await db.from('analysis_queue').update({
       status: 'done',
+      error: null,
       completed_at: new Date().toISOString(),
     }).eq('id', job.id)
 
@@ -362,7 +365,19 @@ async function processJob(job) {
   } catch (err) {
     console.error(`[${new Date().toISOString()}] Failed job ${job.id}:`, err.message)
 
-    // Detect Zenmux quota exhaustion → cooldown 5.1h, re-queue job
+    // A lost response must never downgrade a fully persisted result from the same attempt.
+    const { data: saved } = await db.from('projects')
+      .select('analysis_status,analysis_result,analysis_modules,sonar_analysis').eq('id', job.project_id).single()
+    if (persistedReviewComplete(saved, job)) {
+      await markQueueDone(job.id)
+      if (saved.analysis_status !== 'completed' && job.run_module !== 'sonar') {
+        await db.from('projects').update({ analysis_status: 'completed' }).eq('id', job.project_id)
+      }
+      await maybeSendEventCompletionEmail(job.event_id)
+      return
+    }
+
+    // Back off only for confirmed transient ZenMux throttling, not GLM/auth/balance errors
     if (isZenmuxQuotaError(err.message)) {
       zenmuxBlockedUntil = new Date(Date.now() + ZENMUX_COOLDOWN_MS)
       console.warn(`[${new Date().toISOString()}] ⚠️  Zenmux quota hit! Cooling down until ${zenmuxBlockedUntil.toISOString()}`)
@@ -389,6 +404,7 @@ async function processJob(job) {
       }).eq('id', job.project_id))
     }
     await Promise.all(updates)
+    await maybeSendEventCompletionEmail(job.event_id)
   }
 }
 

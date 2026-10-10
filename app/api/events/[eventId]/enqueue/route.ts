@@ -145,6 +145,11 @@ export async function POST(
     }
   }
 
+  if (!(mode === 'rerun_module' && runModule === 'sonar')) {
+    const reset = await db.from('scores').update({ status: 'pending' }).in('project_id', projectIds)
+    if (reset.error) return NextResponse.json({ error: reset.error.message }, { status: 500 })
+  }
+
   const now = new Date().toISOString()
   const lastRun = {
     mode,

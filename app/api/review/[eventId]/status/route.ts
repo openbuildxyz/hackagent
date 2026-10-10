@@ -25,7 +25,7 @@ export async function GET(
 
   const { data: projectRows } = await admin
     .from('projects')
-    .select('id, analysis_status, analysis_result, sonar_analysis')
+    .select('id, analysis_status, analysis_result, sonar_analysis, analysis_modules')
     .eq('event_id', eventId)
 
   const projectIds = (projectRows ?? []).map((p: { id: string }) => p.id)
@@ -34,12 +34,13 @@ export async function GET(
   // Prefer queue-based project-level progress for VPS worker flow. analysis_queue
   // keeps historical rerun rows, so only the newest row per project is considered.
   const { data: queueRows } = await admin.from('analysis_queue')
-    .select('project_id, status, sonar_enabled')
+    .select('project_id, status, sonar_enabled, created_at, started_at')
     .eq('event_id', eventId)
     .order('created_at', { ascending: false })
 
   const status = computeReviewProgress({
     eventStatus: event.status,
+    modelKeys: (event.models as string[] | null) ?? [],
     modelCount: ((event.models as string[] | null) ?? []).length,
     eventSonarEnabled: (event as { sonar_enabled?: boolean | null }).sonar_enabled,
     projects: (projectRows ?? []) as ReviewProgressProject[],

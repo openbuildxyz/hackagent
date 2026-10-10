@@ -1,10 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
+import { createHash } from 'node:crypto'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUser } from '@/lib/session'
 import { scoreProject } from '@/lib/ai'
 import { analyzeWeb3, buildWeb3InsightSummary } from '@/lib/web3insight'
-import { analyzeCodeWithLLM, computeFakeCodeFlags } from '@/lib/code-analysis'
+import { analyzeCodeWithLLM } from '@/lib/code-analysis'
 import { isEventManager } from '@/lib/event-access'
+import { loadGithubSnapshot, parseGithubReference, redactError } from '@/lib/github-source'
+import { persistedReviewComplete } from '@/worker/review-outcome.mjs'
 
 type RunMode = 'fresh' | 'retry_failed' | 'rerun_module' | 'rerun_all'
 type RunModule = 'sonar' | 'web3' | 'models' | 'all'
@@ -52,133 +55,38 @@ async function runSonarAnalysis(projectName: string, githubUrl: string): Promise
   }
 }
 
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN || ''
-const GITHUB_API = 'https://api.github.com'
-
-function githubHeaders() {
-  const h: Record<string, string> = {
-    Accept: 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-    'User-Agent': 'HackAgent/1.0',
+async function analyzeGithub(reference: NonNullable<ReturnType<typeof parseGithubReference>>) {
+  const snapshot = await loadGithubSnapshot(reference)
+  const metadata = snapshot.metadata
+  const files = snapshot.files
+  const languages: Record<string, { bytes: number; pct: number }> = {}
+  const codeExtensions: Record<string, string> = { sol: 'Solidity', ts: 'TypeScript', tsx: 'TypeScript',
+    js: 'JavaScript', jsx: 'JavaScript', py: 'Python', go: 'Go', rs: 'Rust', html: 'HTML', css: 'CSS' }
+  for (const file of files) {
+    const language = codeExtensions[file.path.split('.').pop() || '']
+    if (language) languages[language] = { bytes: (languages[language]?.bytes || 0) + file.size, pct: 0 }
   }
-  if (GITHUB_TOKEN) h['Authorization'] = `Bearer ${GITHUB_TOKEN}`
-  return h
-}
-
-function parseGithubUrl(url: string): [string, string] | null {
-  if (!url) return null
-  const m = url.match(/github\.com[/:]([^/]+)\/([^/\s?#]+)/)
-  if (!m) return null
-  const repo = m[2].replace(/\.git$/, '').replace(/\/$/, '')
-  return [m[1], repo]
-}
-
-async function ghGet(path: string): Promise<unknown> {
-  await new Promise(r => setTimeout(r, 300 + Math.random() * 500))
-  const res = await fetch(`${GITHUB_API}${path}`, {
-    headers: githubHeaders(),
-    signal: AbortSignal.timeout(10000),
-  })
-  if (!res.ok) return null
-  return res.json()
-}
-
-async function analyzeGithub(owner: string, repo: string) {
-  const repoData = await ghGet(`/repos/${owner}/${repo}`) as Record<string, unknown> | null
-  if (!repoData) return { error: 'repo_not_found', tree: [] }
-
+  const totalBytes = Object.values(languages).reduce((sum, value) => sum + value.bytes, 0)
+  for (const language of Object.values(languages)) language.pct = Math.round(language.bytes / totalBytes * 100)
   const result: Record<string, unknown> = {
-    stars: repoData.stargazers_count ?? 0,
-    forks: repoData.forks_count ?? 0,
-    open_issues: repoData.open_issues_count ?? 0,
-    size_kb: repoData.size ?? 0,
-    is_fork: repoData.fork ?? false,
-    created_at: repoData.created_at,
-    updated_at: repoData.updated_at,
-    description: repoData.description ?? '',
-    topics: repoData.topics ?? [],
-    default_branch: repoData.default_branch ?? 'main',
+    stars: metadata.stargazers_count ?? null, forks: metadata.forks_count ?? null,
+    is_fork: metadata.fork ?? null, created_at: metadata.created_at ?? null,
+    description: metadata.description ?? '', topics: metadata.topics ?? [],
+    default_branch: metadata.default_branch ?? null, source_ref: snapshot.ref,
+    source_digest: snapshot.digest, source_scope: metadata.source_scope, source_method: 'github_archive', code_analysis_version: 2,
+    metadata_error: metadata.metadata_error ?? null, languages,
+    contributors_count: null, commit_count_30d: null,
+    has_readme: files.some(file => /(^|\/)readme\./i.test(file.path)),
+    has_tests: files.some(file => /(^|\/)(tests?|specs?)(\/|$)|\.(test|spec)\./i.test(file.path)),
+    has_docs: files.some(file => /(^|\/)(docs?|documentation)\//i.test(file.path)),
+    total_files: files.length, analyzed_at: new Date().toISOString(),
+    fake_code_flags: metadata.fork === true ? ['fork'] : [],
   }
-
-  // Parallel: languages, contributors, commits (30d), owner info, tree
-  const since30d = new Date(Date.now() - 30 * 86400000).toISOString()
-  const [languages, contributors, commits, ownerInfo, tree] = await Promise.all([
-    ghGet(`/repos/${owner}/${repo}/languages`),
-    ghGet(`/repos/${owner}/${repo}/contributors?per_page=10&anon=1`),
-    ghGet(`/repos/${owner}/${repo}/commits?since=${since30d}&per_page=100`),
-    ghGet(`/users/${owner}`),
-    ghGet(`/repos/${owner}/${repo}/git/trees/HEAD?recursive=0`),
-  ])
-
-  if (languages && typeof languages === 'object' && !Array.isArray(languages)) {
-    const langs = languages as Record<string, number>
-    const total = Object.values(langs).reduce((a, b) => a + b, 0)
-    result.languages = Object.fromEntries(
-      Object.entries(langs)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 5)
-        .map(([lang, bytes]) => [lang, { bytes, pct: Math.round(bytes / total * 100) }])
-    )
-  } else {
-    result.languages = {}
-  }
-
-  result.contributors_count = Array.isArray(contributors) ? contributors.length : 0
-  // Store top contributors (login + contributions)
-  if (Array.isArray(contributors)) {
-    type GhContrib = { login?: string; contributions?: number }
-    result.contributors = (contributors as GhContrib[]).slice(0, 10).map(c => ({
-      login: c.login ?? 'unknown',
-      contributions: c.contributions ?? 0,
-    }))
-  }
-  result.commit_count_30d = Array.isArray(commits) ? commits.length : 0
-
-  // Owner account age (mirrors hackathon-analyzer)
-  let ownerCreatedDaysAgo: number | null = null
-  if (ownerInfo && typeof ownerInfo === 'object') {
-    const oi = ownerInfo as Record<string, unknown>
-    if (typeof oi.created_at === 'string') {
-      try {
-        const created = new Date(oi.created_at)
-        ownerCreatedDaysAgo = Math.floor((Date.now() - created.getTime()) / 86400000)
-        result.owner_created_days_ago = ownerCreatedDaysAgo
-      } catch {}
-    }
-  }
-
-  // Tree-based flags
-  type TreeItem = { path: string; type: string; size?: number }
-  let treeItems: TreeItem[] = []
-  if (tree && typeof tree === 'object') {
-    const t = tree as { tree?: TreeItem[] }
-    if (Array.isArray(t.tree)) {
-      treeItems = t.tree
-      const files = treeItems.map(f => f.path.toLowerCase())
-      result.has_readme = files.some(f => f.startsWith('readme'))
-      result.has_tests = files.some(f => f.includes('test') || f.includes('spec'))
-      result.has_docs = files.some(f => f.startsWith('docs/') || f.startsWith('doc/'))
-      result.total_files = treeItems.filter(f => f.type === 'blob').length
-    }
-  }
-
-  // fake_code_flags (partial — llm_fake_code added later after LLM analysis)
-  result.fake_code_flags = computeFakeCodeFlags({
-    isFork: result.is_fork as boolean,
-    commitCount30d: result.commit_count_30d as number,
-    contributorsCount: result.contributors_count as number,
-    ownerCreatedDaysAgo,
-    tree: treeItems,
-    isRealCode: null,
-  })
-
-  result.analyzed_at = new Date().toISOString()
-  // Pass tree forward for LLM code analysis (not persisted)
-  return { ...result, _tree: treeItems }
+  return { result, snapshot }
 }
 
 // POST /api/projects/[projectId]/review
-export async function POST(
+async function runReview(
   req: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
@@ -216,7 +124,7 @@ export async function POST(
   // Get project + event dimensions
   const { data: project } = await db
     .from('projects')
-    .select('id, name, github_url, demo_url, description, event_id, extra_fields, analysis_result, analysis_status')
+    .select('id, name, github_url, demo_url, description, event_id, extra_fields, analysis_result, analysis_status, analysis_modules, analysis_last_run')
     .eq('id', projectId)
     .single()
 
@@ -246,6 +154,7 @@ export async function POST(
   const dimensions = (event.dimensions as Array<{ name: string; weight: number; description?: string }>) || []
   const modelsToUse: string[] = body.models ?? (event.models as string[]) ?? ['moonshot', 'glm', 'deepseek']
   const web3Enabled = event.web3_enabled ?? false
+  const criteriaDigest = createHash('sha256').update(JSON.stringify({ dimensions, web3Enabled, protocol: 2, project: { name: project.name, github_url: project.github_url, demo_url: project.demo_url, description: project.description } })).digest('hex')
   const isSonarOnlyRerun = mode === 'rerun_module' && runModule === 'sonar'
 
   // Credits check & deduct (skip for worker calls)
@@ -267,7 +176,11 @@ export async function POST(
   // Mark running
   const startedAt = new Date().toISOString()
   const initialModules = ((project as { analysis_modules?: Record<string, unknown> }).analysis_modules ?? {})
-  const runningUpdate: Record<string, unknown> = isSonarOnlyRerun ? {} : { analysis_status: 'running' }
+  const runningUpdate: Record<string, unknown> = isSonarOnlyRerun ? {} : {
+    analysis_status: 'running',
+    analysis_modules: { ...initialModules, code: { status: 'running', updated_at: startedAt, error: null } },
+    analysis_last_run: { mode, module: runModule, models: modelsToUse, triggered_by: effectiveUserId, triggered_at: startedAt },
+  }
   if (isSonarOnlyRerun) {
     runningUpdate.analysis_modules = {
       ...initialModules,
@@ -321,13 +234,13 @@ export async function POST(
             module: runModule,
             models: modelsToUse,
             triggered_by: effectiveUserId,
-            triggered_at: completedAt,
+            triggered_at: startedAt,
           },
           analysis_log: [...existingLog, logEntry],
         })
         .eq('id', projectId)
 
-      return NextResponse.json({ success: true, result: analysisResult })
+      return NextResponse.json({ success: true, started_at: startedAt, result: analysisResult })
     }
 
     // 1. GitHub analysis + LLM code analysis (parallel)
@@ -336,55 +249,44 @@ export async function POST(
     let web3Analysis = null
     let web3Summary = '无Web3开发记录'
     if (project.github_url) {
-      const parsed = parseGithubUrl(project.github_url)
-      if (parsed) {
-        const [owner, repo] = parsed
-        const ghRaw = await analyzeGithub(owner, repo) as Record<string, unknown>
-
-        // Extract tree (internal, not persisted) and run LLM code analysis in parallel with Web3
-        const treeItems = (ghRaw._tree ?? []) as Array<{ path: string; type: string; size?: number }>
-        delete ghRaw._tree
-
-        // LLM code analysis — mirrors hackathon-analyzer _llm_business_match
-        const codeAnalysisPromise = analyzeCodeWithLLM(
-          owner, repo, treeItems,
-          project.name,
-          project.description ?? ''
-        )
-
-        // 2. Web3Insight analysis (parallel with LLM code analysis)
-        // Build extraText from all project text fields to extract Twitter handle
-        const extraFields = project.extra_fields as Record<string, string> | null
-        const extraText = [
-          project.description ?? '',
-          project.demo_url ?? '',
-          extraFields ? Object.values(extraFields).join(' ') : '',
-        ].join(' ')
-
-        const web3Promise = web3Enabled
-          ? analyzeWeb3(project.github_url, extraText)
-          : Promise.resolve(null)
-
-        const [codeResult, web3Result] = await Promise.all([codeAnalysisPromise, web3Promise])
-        codeAnalysis = codeResult
-        web3Analysis = web3Result
-
-        // Merge LLM fake_code signal into github flags
-        if (codeResult.is_real_code === false) {
-          const flags = (ghRaw.fake_code_flags as string[]) ?? []
-          if (!flags.includes('llm_fake_code')) flags.push('llm_fake_code')
-          ghRaw.fake_code_flags = flags
-        }
-        ghRaw.llm_code_analysis = codeResult
-
-        githubResult = ghRaw
+      const reference = parseGithubReference(project.github_url)
+      if (!reference) throw new Error('GitHub URL must identify a repository, not a user profile')
+      const { result: ghRaw, snapshot } = await analyzeGithub(reference)
+      const previousGithub = (project.analysis_result as { github_analysis?: Record<string, unknown> } | null)?.github_analysis
+      const previousCode = previousGithub?.llm_code_analysis as Awaited<ReturnType<typeof analyzeCodeWithLLM>> | undefined
+      const readme = snapshot.files.find(file => /^readme\./i.test(file.path))?.content || ''
+      const codeAnalysisPromise = mode === 'retry_failed' && previousGithub?.code_analysis_version === 2
+        && previousGithub.source_digest === snapshot.digest && project.analysis_result?.criteria_digest === criteriaDigest
+        && previousCode && !previousCode.llm_error
+        ? Promise.resolve(previousCode)
+        : analyzeCodeWithLLM(reference.owner, reference.repo, snapshot.files, project.name,
+          (project.description ?? '') + '\nRepository README (context only):\n' + readme.slice(0, 4000),
+          { ref: snapshot.ref, digest: snapshot.digest })
+      const extraFields = project.extra_fields as Record<string, string> | null
+      const extraText = [project.description ?? '', project.demo_url ?? '',
+        extraFields ? Object.values(extraFields).join(' ') : ''].join(' ')
+      const [codeResult, web3Result] = await Promise.all([
+        codeAnalysisPromise,
+        web3Enabled ? analyzeWeb3(project.github_url, extraText) : Promise.resolve(null),
+      ])
+      codeAnalysis = codeResult
+      web3Analysis = web3Result
+      ghRaw.llm_code_analysis = codeResult
+      githubResult = ghRaw
+      if (codeResult.llm_error) {
+        await db.from('projects').update({
+          github_analysis: ghRaw,
+          analysis_result: { github_analysis: ghRaw, ai_reviews: [], analyzed_at: new Date().toISOString(), code_analysis_version: 2 },
+          analysis_modules: { ...initialModules, code: { status: 'error', updated_at: new Date().toISOString(), error: codeResult.llm_error } },
+        }).eq('id', projectId)
+        throw new Error(`Code analysis failed: ${codeResult.llm_error}`)
       }
     }
 
     // Update web3Summary if web3Analysis was fetched
     if (web3Analysis) {
       web3Summary = buildWeb3InsightSummary(web3Analysis)
-    } else if (web3Enabled && project.github_url && !parseGithubUrl(project.github_url)) {
+    } else if (web3Enabled && project.github_url && !parseGithubReference(project.github_url)) {
       // Fallback: URL couldn't be parsed but web3 enabled — still try web3insight
       web3Analysis = await analyzeWeb3(project.github_url, [project.description ?? '', project.demo_url ?? ''].join(' '))
       web3Summary = buildWeb3InsightSummary(web3Analysis)
@@ -403,11 +305,26 @@ export async function POST(
       dimensions: Record<string, number>
       summary: string | { zh: string; en: string }
       web3_insight?: string
+      error?: boolean
+      reused?: boolean
     }> = []
 
     if (dimensions.length > 0) {
       // Parallel AI scoring across models
       const results = await Promise.all(modelsToUse.map(async modelKey => {
+        const previous = project.analysis_result as {
+          criteria_digest?: string
+          github_analysis?: { source_digest?: string; code_analysis_version?: number }
+          ai_reviews?: Array<{ model: string; score: number; dimensions: Record<string, number>; summary: string; error?: boolean }>
+        } | null
+        const reusable = mode === 'retry_failed' && previous?.criteria_digest === criteriaDigest
+          && previous.github_analysis?.code_analysis_version === 2
+          && previous.github_analysis.source_digest === githubResult?.source_digest
+          ? previous.ai_reviews?.find(review => review.model === modelKey && !review.error
+            && Number.isFinite(review.score) && review.score >= 1 && review.score <= 10
+            && dimensions.every(d => Number.isFinite(review.dimensions?.[d.name]) && review.dimensions[d.name] >= 1 && review.dimensions[d.name] <= 10))
+          : undefined
+        if (reusable) return { ...reusable, reused: true }
         try {
           const result = await scoreProject(
             {
@@ -431,7 +348,7 @@ export async function POST(
             web3_insight: result.web3_insight,
           }
         } catch (err) {
-          const stack = err instanceof Error ? err.stack : String(err)
+          const stack = redactError(String(err))
           console.error(`[review] model ${modelKey} failed:`, stack)
           return { model: modelKey, score: 0, dimensions: {}, summary: `[ERROR] ${stack}`, error: true } as never
         }
@@ -441,6 +358,9 @@ export async function POST(
 
     // 5. Write back
     const analysisResult = {
+      code_analysis_version: 2,
+      criteria_digest: criteriaDigest,
+      run_started_at: startedAt,
       github_analysis: githubResult,
       ai_reviews: aiReviews,
       sonar_analysis: sonarResult,
@@ -448,31 +368,31 @@ export async function POST(
       analyzed_at: new Date().toISOString(),
     }
 
-    const logEntry = {
-      ts: new Date().toISOString(),
-      status: 'completed',
-      github: !!githubResult,
-      web3: !!web3Analysis,
-      web3_status: web3Analysis?.web3insight?.status ?? (web3Enabled ? 'not_run' : 'disabled'),
-      web3_errors: web3Analysis?.web3insight?.errors ?? [],
-      sonar: !!sonarResult,
-      models: aiReviews.map(r => r.model),
-    }
-
-    // Fetch existing log to append
+    const finishedAt = new Date().toISOString()
+    const successfulModels = new Set(aiReviews.filter(review => !review.error && review.score > 0).map(review => review.model))
+    const success = modelsToUse.length > 0 && modelsToUse.every(model => successfulModels.has(model))
+    const finalStatus = success ? 'completed' : 'error'
+    const logEntry = { ts: finishedAt, status: finalStatus, github: !!githubResult,
+      code_analysis_version: 2, source_ref: githubResult?.source_ref, source_digest: githubResult?.source_digest,
+      web3: !!web3Analysis, sonar: !!sonarResult, models: aiReviews.map(review => review.model) }
     const { data: cur } = await db.from('projects').select('analysis_log').eq('id', projectId).single()
     const existingLog = Array.isArray(cur?.analysis_log) ? cur.analysis_log : []
+    const scoreRows = aiReviews.map(review => ({
+      project_id: projectId, model: review.model, dimension_scores: review.dimensions,
+      overall_score: review.score, comment: typeof review.summary === 'string' ? review.summary : JSON.stringify(review.summary),
+      web3_insight: review.web3_insight ?? null, status: review.error ? 'failed' : 'done',
+    }))
+    const scoreUpdate = await db.from('scores').upsert(scoreRows, { onConflict: 'project_id,model' })
+    if (scoreUpdate.error) throw new Error(`Failed to persist model scores: ${scoreUpdate.error.message}`)
 
-    // Check error rate - reset status to 'error' if >80% of ai_reviews failed
-    const errorRate = aiReviews.length > 0
-      ? aiReviews.filter((r: Record<string, unknown>) => r.error).length / aiReviews.length
-      : 0
-    const finalStatus = errorRate > 0.8 ? 'error' : 'completed'
-
-    await db
+    const projectUpdate = await db
       .from('projects')
       .update({
         analysis_status: finalStatus,
+        analysis_modules: { ...initialModules,
+          code: { status: githubResult ? 'completed' : 'skipped', updated_at: finishedAt, error: null },
+          models: { status: finalStatus, updated_at: finishedAt, error: success ? null : 'One or more configured models failed' },
+        },
         analysis_result: analysisResult,
         github_analysis: githubResult,
         reviewer_submissions: aiReviews,
@@ -482,9 +402,12 @@ export async function POST(
       })
       .eq('id', projectId)
 
-    return NextResponse.json({ success: true, result: analysisResult })
+    if (projectUpdate.error) throw new Error(`Failed to persist review: ${projectUpdate.error.message}`)
+    return NextResponse.json({ success, started_at: startedAt, result: analysisResult,
+      errors: aiReviews.filter(review => review.error).map(review => ({ model: review.model, error: review.summary })) },
+      { status: success ? 200 : 502 })
   } catch (err) {
-    const errEntry = { ts: new Date().toISOString(), status: 'error', error: String(err) }
+    const errEntry = { ts: new Date().toISOString(), status: 'error', error: redactError(String(err)) }
     const errorUpdate: Record<string, unknown> = isSonarOnlyRerun ? {} : { analysis_status: 'error' }
     if (isSonarOnlyRerun) {
       errorUpdate.analysis_modules = {
@@ -507,6 +430,69 @@ export async function POST(
         await db.from('projects').update({ analysis_log: [...log, errEntry] }).eq('id', projectId)
       } catch { /* ignore */ }
     })()
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    return NextResponse.json({ success: false, started_at: startedAt, error: redactError(String(err)) }, { status: 500 })
   }
+}
+
+
+async function reconcileWorkerResult(projectId: string, payload: Record<string, unknown>) {
+  const startedAt = typeof payload.started_at === 'string' ? payload.started_at : null
+  if (!startedAt) return
+  // Give the legacy worker time to finish its transport update, then reconcile the same attempt.
+  await new Promise(resolve => setTimeout(resolve, 1200))
+  const db = createServiceClient()
+  const [{ data: project }, { data: rows }] = await Promise.all([
+    db.from('projects').select('id,analysis_status,analysis_result,analysis_modules,analysis_last_run,sonar_analysis').eq('id', projectId).single(),
+    db.from('analysis_queue').select('id,models,sonar_enabled,run_mode,run_module,created_at,started_at').eq('project_id', projectId).order('created_at', { ascending: false }).limit(1),
+  ])
+  const queue = rows?.[0]
+  if (!project || !queue || project.analysis_last_run?.triggered_at !== startedAt || queue.created_at > startedAt) return
+  const complete = persistedReviewComplete(project, queue)
+  const error = complete ? null : redactError(String(payload.error || JSON.stringify(payload.errors || 'Review did not complete')))
+  const result = await db.from('analysis_queue').update({ status: complete ? 'done' : 'error', error,
+    completed_at: new Date().toISOString() }).eq('id', queue.id)
+  if (result.error) console.error('[review] queue reconciliation failed:', result.error.message)
+  if (complete && project.analysis_status !== 'completed' && queue.run_module !== 'sonar') {
+    await db.from('projects').update({ analysis_status: 'completed' }).eq('id', projectId)
+      .eq('analysis_last_run->>triggered_at', startedAt)
+  }
+}
+
+export async function POST(req: NextRequest, context: { params: Promise<{ projectId: string }> }) {
+  const secret = req.headers.get('x-worker-secret')
+  const worker = req.headers.get('x-internal-user-id') === 'worker' && secret
+    && [process.env.WORKER_SECRET, process.env.INTERNAL_API_SECRET].filter(Boolean).includes(secret)
+  if (!worker) return runReview(req, context)
+  const { projectId } = await context.params
+  const work = runReview(req, context).then(async response => ({
+    ...(await response.json() as Record<string, unknown>), http_status: response.status,
+  }))
+  after(async () => {
+    try {
+      const result = await work
+      await reconcileWorkerResult(projectId, result)
+      await new Promise(resolve => setTimeout(resolve, 2500))
+      await reconcileWorkerResult(projectId, result)
+    }
+    catch (error) { console.error('[review] result reconciliation failed:', redactError(String(error))) }
+  })
+  let cancelled = false
+  let timer: ReturnType<typeof setInterval> | undefined
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const encoder = new TextEncoder()
+      controller.enqueue(encoder.encode('\n'))
+      timer = setInterval(() => {
+        if (!cancelled) controller.enqueue(encoder.encode('\n'))
+      }, 4000)
+      void work.then(payload => {
+        if (!cancelled) { controller.enqueue(encoder.encode(JSON.stringify(payload))); controller.close() }
+      }).catch(error => {
+        if (!cancelled) { controller.enqueue(encoder.encode(JSON.stringify({ success: false, error: redactError(String(error)) }))); controller.close() }
+      }).finally(() => { if (timer) clearInterval(timer) })
+    },
+    cancel() { cancelled = true; if (timer) clearInterval(timer) },
+  })
+  return new Response(stream, { headers: { 'Content-Type': 'application/json',
+    'Cache-Control': 'no-store, no-transform', 'X-Accel-Buffering': 'no' } })
 }

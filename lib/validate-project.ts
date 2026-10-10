@@ -89,6 +89,7 @@ export function validateProjectInput(input: {
     const url = normalizeUrl(input.github_url)
     if (isDangerousUrl(url)) errors.github_url = 'github_url must be a valid HTTP(S) URL'
     else if (!isValidHttpUrl(url)) errors.github_url = 'github_url must be a valid HTTP(S) URL'
+    else if (new URL(url).hostname.toLowerCase() === 'github.com' && new URL(url).pathname.split('/').filter(Boolean).length < 2) errors.github_url = 'github_url must identify a repository, not a GitHub user profile'
     else if (url.length > MAX_URL) errors.github_url = `github_url must be ≤${MAX_URL} chars`
   }
 

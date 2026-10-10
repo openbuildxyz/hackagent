@@ -34,12 +34,13 @@ type ProjectForProgress = {
   analysis_result?: {
     ai_reviews?: Array<{ model?: string | null; score?: number | null; error?: boolean | null }> | null
     sonar_analysis?: unknown | null
+    analyzed_at?: string | null
   } | null
   sonar_analysis?: unknown | null
 }
 
 type ScoreRow = { project_id: string; model: string | null }
-type QueueRow = { project_id: string; status: string | null; error: string | null; sonar_enabled: boolean | null }
+type QueueRow = { project_id: string; status: string | null; error: string | null; sonar_enabled: boolean | null; created_at?: string; started_at?: string }
 
 function buildAnalysisProgress(
   projects: ProjectForProgress[],
@@ -70,10 +71,12 @@ function buildAnalysisProgress(
     const completedModels = completedByProject.get(project.id)
     const aiReviewModels = new Set(
       (project.analysis_result?.ai_reviews ?? [])
-        .filter(review => !review.error && (review.score ?? 0) > 0 && review.model)
+        .filter(review => !review.error && (review.score ?? 0) > 0 && review.model && models.includes(review.model))
         .map(review => review.model as string)
     )
-    const aiCompleted = completedModels?.size ?? aiReviewModels.size
+    const attempt = queue?.started_at || queue?.created_at
+    const fresh = !attempt || Boolean(project.analysis_result?.analyzed_at && project.analysis_result.analyzed_at >= attempt)
+    const aiCompleted = queue ? (fresh ? aiReviewModels.size : 0) : (completedModels?.size ?? aiReviewModels.size)
     const sonarRequired = Boolean(event.sonar_enabled || queue?.sonar_enabled)
     const sonarCompleted = Boolean(project.sonar_analysis || project.analysis_result?.sonar_analysis)
 
@@ -297,7 +300,7 @@ export async function GET(
     db.from('reviewer_scores').select('project_id, model').in('project_id', projectIds).in('status', ['done', 'ai_done']),
     db.from('scores').select('project_id, model').in('project_id', projectIds).eq('status', 'done'),
     db.from('analysis_queue')
-      .select('project_id, status, error, sonar_enabled')
+      .select('project_id, status, error, sonar_enabled, created_at, started_at')
       .eq('event_id', eventId)
       .order('created_at', { ascending: false }),
   ])

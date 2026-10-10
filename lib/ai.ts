@@ -1,5 +1,6 @@
 import { getChatConfigForModelKey, getTemperatureForModel } from './zenmux'
 import { MODEL_IDS } from './models'
+import { isRetryableError, redactError, serviceError } from './github-source'
 
 interface ScoreProject {
   name: string
@@ -121,15 +122,8 @@ export async function scoreProject(
       : `\n补充信息 - 开发者 Web3 背景：${web3InsightSummary}（此数据仅供参考，请专注于上述评分维度，不要因此调整与 Web3 无关的维度分数）`
     : ''
 
-  // Code authenticity — global risk flag, injected before scoring dimensions
-  let codeRiskPrompt = ''
-  if (codeAnalysis) {
-    if (codeAnalysis.is_real_code === false) {
-      codeRiskPrompt = `\n⚠️ 代码真实性警告：AI 分析判定此项目代码疑似非真实开发（可能为 AI 生成或抄袭）。业务吻合度评分：${codeAnalysis.business_match_score ?? '未知'}/10。${codeAnalysis.code_quality_summary ? `代码总结：${codeAnalysis.code_quality_summary}` : ''}\n请在所有维度评分时综合考量此风险，适当降分。\n`
-    } else if (codeAnalysis.is_real_code === true) {
-      codeRiskPrompt = `\n✅ 代码真实性：AI 分析确认此项目为真实开发代码。业务吻合度：${codeAnalysis.business_match_score ?? '未知'}/10。${codeAnalysis.code_quality_summary ? `代码总结：${codeAnalysis.code_quality_summary}` : ''}\n`
-    }
-  }
+  // Code sampling supplies technical evidence, not proof of authorship or a global penalty.
+  const codeRiskPrompt = codeAnalysis ? `\n源码抽样分析：业务吻合度 ${codeAnalysis.business_match_score ?? '未知'}/10。${codeAnalysis.code_quality_summary || ''}\n这些结果仅基于部分源码；请在技术相关维度参考可见实现。不要推断抄袭、AI生成、作者身份或自动对全部维度降分；缺少样本也不等于没有实现。\n` : ''
 
   // SonarQube — inject into tech-related dimensions
   const techKeywords = ['技术', '代码', '工程', '实现', '架构', 'quality', '完成度', '可维护', '健壮']
@@ -186,10 +180,11 @@ ${sonarPrompt}${web3Prompt}
           temperature: getTemperatureForModel(modelId, 0.3),
           max_tokens: 8000,
         }),
+        signal: AbortSignal.timeout(90000),
       })
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`)
+        throw await serviceError(response, `${provider}/${modelId}`)
       }
 
       const data = await response.json()
@@ -202,13 +197,16 @@ ${sonarPrompt}${web3Prompt}
       const result = JSON.parse(jsonMatch[0]) as ScoreResult
 
       // Validate result
-      if (!result.scores || typeof result.overall !== 'number') {
+      if (!result.scores || !Number.isFinite(result.overall) || result.overall < 1 || result.overall > 10
+        || !dimensions.every(d => Number.isFinite(result.scores[d.name]) && result.scores[d.name] >= 1 && result.scores[d.name] <= 10)
+        || typeof result.comment !== 'string' || !result.comment.trim()) {
         throw new Error('Invalid score format')
       }
 
       return result
     } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err))
+      lastError = err instanceof Error ? err : new Error(redactError(String(err)))
+      if (!isRetryableError(err)) throw lastError
       if (attempt < 2) {
         await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)))
       }
