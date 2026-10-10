@@ -94,6 +94,18 @@ await test('score validation rejects missing dimensions even when overall score 
   assert.equal(requests, 3)
 })
 
+await test('overall scores follow configured weights despite a model arithmetic error', async () => {
+  const load = tsLoader({ process: { env: { ZENMUX_PAY2GO_API_KEY: 'test-secret-123' } }, fetch: async () =>
+    Response.json({ choices: [{ message: { content: JSON.stringify({ scores: { technical: 9, innovation: 5 }, overall: 7.5, comment: 'valid review' }) } }] }) })
+  const { scoreProject, calculateWeightedOverall } = load('lib/ai.ts')
+  const dimensions = [{ name: 'technical', weight: 80 }, { name: 'innovation', weight: 20 }]
+  const result = await scoreProject({ name: 'project' }, dimensions, 'gemini', false)
+  assert.equal(result.overall, 8.2)
+  assert.equal(calculateWeightedOverall({ technical: 8, innovation: 8 }, dimensions), 8)
+  assert.throws(() => calculateWeightedOverall({ technical: 8 }, dimensions), /Invalid scoring dimensions/)
+  assert.throws(() => calculateWeightedOverall({ technical: 8 }, [{ name: 'technical', weight: 0 }]), /Invalid scoring dimensions/)
+})
+
 await test('transport loss cannot invalidate complete persisted scores; stale, partial, or failed code cannot pass', () => {
   const job = { models: ['gemini', 'glm'], created_at: '2026-10-11T01:00:00Z' }
   const result = { analyzed_at: '2026-10-11T01:01:00Z', ai_reviews: [

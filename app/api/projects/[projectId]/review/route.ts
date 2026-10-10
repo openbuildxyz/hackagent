@@ -2,7 +2,7 @@ import { NextRequest, NextResponse, after } from 'next/server'
 import { createHash } from 'node:crypto'
 import { createServiceClient } from '@/lib/supabase'
 import { getSessionUser } from '@/lib/session'
-import { scoreProject } from '@/lib/ai'
+import { scoreProject, calculateWeightedOverall } from '@/lib/ai'
 import { analyzeWeb3, buildWeb3InsightSummary } from '@/lib/web3insight'
 import { analyzeCodeWithLLM } from '@/lib/code-analysis'
 import { isEventManager } from '@/lib/event-access'
@@ -347,7 +347,7 @@ async function runReview(
             && Number.isFinite(review.score) && review.score >= 1 && review.score <= 10
             && dimensions.every(d => Number.isFinite(review.dimensions?.[d.name]) && review.dimensions[d.name] >= 1 && review.dimensions[d.name] <= 10))
           : undefined
-        if (reusable) return { ...reusable, reused: true }
+        if (reusable) return { ...reusable, score: calculateWeightedOverall(reusable.dimensions, dimensions), reused: true }
         try {
           const result = await scoreProject(
             {

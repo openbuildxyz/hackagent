@@ -22,6 +22,17 @@ interface ScoreResult {
   web3_insight?: string
 }
 
+export function calculateWeightedOverall(scores: Record<string, number>, dimensions: Dimension[]): number {
+  const totalWeight = dimensions.reduce((total, dimension) => total + dimension.weight, 0)
+  if (dimensions.length === 0 || !Number.isFinite(totalWeight) || totalWeight <= 0
+    || dimensions.some(d => !Number.isFinite(d.weight) || d.weight < 0
+      || !Number.isFinite(scores[d.name]) || scores[d.name] < 1 || scores[d.name] > 10)) {
+    throw new Error('Invalid scoring dimensions or weights')
+  }
+  const weighted = dimensions.reduce((total, d) => total + scores[d.name] * d.weight, 0) / totalWeight
+  return Math.round(weighted * 100) / 100
+}
+
 async function fetchGithubReadme(githubUrl: string): Promise<string | null> {
   try {
     const match = githubUrl.match(/github\.com\/([^/]+)\/([^/]+)/)
@@ -155,6 +166,7 @@ Demo：${project.demo_url || '未提供'}
 ${dimensionsList}
 ${sonarPrompt}${web3Prompt}
 
+overall 必须等于各维度分数按上述权重计算的加权平均值。
 请仅返回有效的JSON格式（不要包含任何其他文字）：
 {
   "scores": {
@@ -203,7 +215,7 @@ ${sonarPrompt}${web3Prompt}
         throw new Error('Invalid score format')
       }
 
-      return result
+      return { ...result, overall: calculateWeightedOverall(result.scores, dimensions) }
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(redactError(String(err)))
       if (!isRetryableError(err)) throw lastError
