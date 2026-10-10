@@ -27,6 +27,7 @@ export interface FileItem {
   url?: string
   sha?: string
   content?: string
+  repository?: string
 }
 
 const DEPENDENCIES = new Set(['node_modules', 'vendor', 'venv', '.venv', '.git', 'forge-std',
@@ -55,9 +56,19 @@ export function pickCodeFiles(tree: FileItem[]): FileItem[] {
   // Balance coverage without allowing low-value CSS/marketing files to displace business logic.
   const selected: FileItem[] = []
   const groups = new Map<string, number>()
+  const repositories = [...new Set(candidates.map(file => file.repository).filter(Boolean))]
+  if (repositories.length > 1) {
+    for (const repository of repositories) {
+      for (const file of candidates.filter(file => file.repository === repository).slice(0, 2)) {
+        selected.push(file)
+        const group = file.path.split('/').slice(0, -1).join('/') + ':' + ext(file.path)
+        groups.set(group, (groups.get(group) || 0) + 1)
+      }
+    }
+  }
   for (const file of candidates) {
     const group = file.path.split('/').slice(0, -1).join('/') + ':' + ext(file.path)
-    if ((groups.get(group) || 0) < 2) { selected.push(file); groups.set(group, (groups.get(group) || 0) + 1) }
+    if (!selected.includes(file) && (groups.get(group) || 0) < 2) { selected.push(file); groups.set(group, (groups.get(group) || 0) + 1) }
     if (selected.length === 8) return selected
   }
   for (const file of candidates) if (!selected.includes(file) && selected.length < 8) selected.push(file)

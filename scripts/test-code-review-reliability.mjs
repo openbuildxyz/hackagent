@@ -143,3 +143,18 @@ await test('streaming archive reader skips large media while keeping business so
   assert.equal(result.files.find(file => file.path.endsWith('asset.png')).content, '')
   assert.equal(result.files.find(file => file.path.endsWith('business.ts')).content, 'export const implementation = true')
 })
+
+
+await test('multi-repository sampling retains backend evidence instead of only frontend files', () => {
+  const { pickCodeFiles } = tsLoader()('lib/code-analysis.ts')
+  const files = [
+    ...Array.from({ length: 10 }, (_, i) => ({ path: `web/src/folder${i}/page.tsx`, size: 50000, type: 'blob', repository: 'web' })),
+    { path: 'backend/src/routes.rs', size: 1000, type: 'blob', repository: 'backend' },
+    { path: 'backend/src/policy.rs', size: 500, type: 'blob', repository: 'backend' },
+    { path: 'admin/src/api.ts', size: 700, type: 'blob', repository: 'admin' },
+  ]
+  const selected = Array.from(pickCodeFiles(files))
+  assert.equal(selected.length, 8)
+  assert.equal(selected.filter(file => file.repository === 'backend').length, 2)
+  assert(selected.some(file => file.repository === 'admin'))
+})

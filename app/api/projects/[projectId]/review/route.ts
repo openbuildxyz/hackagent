@@ -154,7 +154,7 @@ async function runReview(
   const dimensions = (event.dimensions as Array<{ name: string; weight: number; description?: string }>) || []
   const modelsToUse: string[] = body.models ?? (event.models as string[]) ?? ['moonshot', 'glm', 'deepseek']
   const web3Enabled = event.web3_enabled ?? false
-  const criteriaDigest = createHash('sha256').update(JSON.stringify({ dimensions, web3Enabled, protocol: 2, project: { name: project.name, github_url: project.github_url, demo_url: project.demo_url, description: project.description } })).digest('hex')
+  const criteriaDigest = createHash('sha256').update(JSON.stringify({ dimensions, web3Enabled, protocol: 2, project: { name: project.name, github_url: project.github_url, demo_url: project.demo_url, description: project.description, additional_sources: project.extra_fields?.code_review_repositories } })).digest('hex')
   const isSonarOnlyRerun = mode === 'rerun_module' && runModule === 'sonar'
 
   // Credits check & deduct (skip for worker calls)
@@ -252,6 +252,29 @@ async function runReview(
       const reference = parseGithubReference(project.github_url)
       if (!reference) throw new Error('GitHub URL must identify a repository, not a user profile')
       const { result: ghRaw, snapshot } = await analyzeGithub(reference)
+      const configured = (project.extra_fields as Record<string, unknown> | null)?.code_review_repositories
+      const additional = typeof configured === 'string' ? configured.split(/[\n,]+/).map(value => value.trim()).filter(Boolean) : []
+      if (additional.length > 2) throw new Error('At most two supplemental code repositories are supported')
+      if (additional.length) {
+        const references = additional.map(url => {
+          const parsed = parseGithubReference(url)
+          if (!parsed || parsed.owner.toLowerCase() !== reference.owner.toLowerCase()) {
+            throw new Error('Supplemental code repositories must be valid repositories under the submitted GitHub owner')
+          }
+          return parsed
+        }).filter(parsed => parsed.repo !== reference.repo)
+        const related = await Promise.all(references.map(parsed => loadGithubSnapshot(parsed)))
+        const sources = [snapshot, ...related]
+        const evidence = sources.map(source => ({ url: source.reference.url, ref: source.ref,
+          digest: source.digest, source_scope: source.metadata.source_scope, files: source.files.length }))
+        snapshot.files = sources.flatMap(source => source.files.map(file => ({ ...file,
+          path: source.reference.repo + '/' + file.path, repository: source.reference.repo })))
+        snapshot.digest = createHash('sha256').update(JSON.stringify(evidence)).digest('hex')
+        ghRaw.source_digest = snapshot.digest
+        ghRaw.source_repositories = evidence
+        ghRaw.source_method = 'github_archive_multi'
+        ghRaw.total_files = snapshot.files.length
+      }
       const previousGithub = (project.analysis_result as { github_analysis?: Record<string, unknown> } | null)?.github_analysis
       const previousCode = previousGithub?.llm_code_analysis as Awaited<ReturnType<typeof analyzeCodeWithLLM>> | undefined
       const readme = snapshot.files.find(file => /^readme\./i.test(file.path))?.content || ''
