@@ -144,22 +144,24 @@ export default function ReviewPage() {
       }
 
       if (eventData.status === 'judging') {
-        // Verify queue actually has tasks before setting reviewing=true
         try {
-          const queueRes = await fetch(`/api/events/${eventId}/batch-preanalyze`)
-          if (queueRes.ok) {
-            const queueData = await queueRes.json()
-            const hasActiveTasks = (queueData.pending ?? 0) > 0 || (queueData.running ?? 0) > 0
-            if (hasActiveTasks) {
+          const statusRes = await fetch(`/api/review/${eventId}/status`)
+          if (statusRes.ok) {
+            const status = await statusRes.json()
+            setProgress(status.progress ?? 0)
+            setProgressTotal(status.total ?? 0)
+            setProgressCompleted(status.completed ?? 0)
+            setFailedCount(status.failed ?? 0)
+            if (status.done && (status.total ?? 0) > 0) {
+              setDone(true)
+              if (eventData.mode === 'ai_only') fetchScores()
+            } else if ((status.active ?? 0) > 0) {
               setReviewing(true)
               startPolling()
             }
-            // else: queue is empty, don't set reviewing - show the Start button
-          } else {
-            // Can't check queue, default to showing start button
           }
         } catch {
-          // Silently ignore, show start button
+          // The organizer can retry fetching or start a review if no jobs are active.
         }
       } else if (eventData.status === 'done') {
         setDone(true)
@@ -187,9 +189,6 @@ export default function ReviewPage() {
     if (res.ok) {
       const data = await res.json()
       setScores(data)
-      // Count failed scores
-      const failed = (data as Score[]).filter(s => (s as Score & { status?: string }).status === 'failed').length
-      setFailedCount(failed)
     }
   }
 
@@ -217,15 +216,16 @@ export default function ReviewPage() {
         setProgress(data.progress ?? 0)
         setProgressTotal(data.total ?? 0)
         setProgressCompleted(data.completed ?? 0)
+        setFailedCount(data.failed ?? 0)
         setCurrentProject(data.currentProject ?? '')
         setCurrentModel(data.currentModel ?? '')
 
         if (data.done) {
           setDone(true)
           setReviewing(false)
-          setProgress(100)
           if (pollRef.current) clearInterval(pollRef.current)
-          toast.success('评审完成！')
+          if ((data.failed ?? 0) > 0) toast.error(`评审结束，${data.failed} 个项目失败，请重试`)
+          else toast.success('评审完成！')
           fetchScores()
         } else if ((data.total ?? 0) === 0 && (data.completed ?? 0) === 0) {
           // Queue is empty and no tasks running - reset to start state
