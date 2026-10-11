@@ -1,6 +1,6 @@
 export function persistedReviewComplete(project: {
-  analysis_result?: Record<string, any> | null
-  analysis_modules?: Record<string, any> | null
+  analysis_result?: Record<string, unknown> | null
+  analysis_modules?: Record<string, unknown> | null
   sonar_analysis?: unknown
 } | null | undefined, job: {
   started_at?: string | null

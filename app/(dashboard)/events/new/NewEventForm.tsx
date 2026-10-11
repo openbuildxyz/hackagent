@@ -421,8 +421,6 @@ export default function NewEventForm() {
     setLoading(true)
     try {
       const defaultFields = [
-        { key: 'team_name', label: t('reg.teamName'), type: 'text', required: true, default: true },
-        { key: 'github_url', label: t('reg.githubUrl'), type: 'url', required: false, default: true },
         ...(tracks.filter(tr => tr.name.trim()).length > 0
           ? [{ key: 'track_id', label: t('reg.trackSelect'), type: 'text', required: false, default: true }]
           : []),
@@ -818,7 +816,7 @@ export default function NewEventForm() {
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {[t('reg.teamName'), t('reg.githubUrl'), ...(activeTracks.length > 0 ? [t('reg.trackSelect')] : [])].map(f => (
+                      {(activeTracks.length > 0 ? [t('reg.trackSelect')] : []).map(f => (
                         <span key={f} className="bg-bg border border-token text-fg-muted text-sm px-3 py-1 rounded-full">{f}</span>
                       ))}
                     </div>
