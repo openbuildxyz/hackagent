@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { useLocale, useT, type Locale } from '@/lib/i18n'
 import { copyToClipboard } from '@/components/CopyButton'
 import { canCreateEvents, canUseReviewerTools, normalizeRoles } from '@/lib/permissions'
+import BrandMark from '@/components/BrandMark'
 
 const LIVE_EVENT_HREF = '/events/public/3cd04217-86e1-4431-9893-709be5998780'
 const SHOW_LIVE_CALLOUT = false
@@ -277,7 +278,7 @@ export default function LandingClient({ initialProjectsReviewed }: { initialProj
         <div className="px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-2 max-w-7xl mx-auto">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Link href="/" className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded-md bg-[var(--color-accent)] flex items-center justify-center text-white font-black text-xs shrink-0">H</span>
+              <BrandMark size={24} className="shrink-0" />
               <span className="font-bold text-[15px] tracking-tight text-[var(--color-fg)]">HackAgent</span>
             </Link>
             <span className="hidden sm:inline text-[10px] font-semibold bg-[var(--color-accent)]/15 text-[var(--color-accent)] px-1.5 py-0.5 rounded font-mono tracking-wider">BETA</span>

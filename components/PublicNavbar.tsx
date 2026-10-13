@@ -6,6 +6,7 @@ import { Sun, Moon, ArrowUpRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useT, useLocale, type Locale } from '@/lib/i18n'
 import { canCreateEvents, canUseReviewerTools, normalizeRoles } from '@/lib/permissions'
+import BrandMark from '@/components/BrandMark'
 
 export default function PublicNavbar() {
   const t = useT()
@@ -58,10 +59,7 @@ export default function PublicNavbar() {
       <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
-          <span
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-black text-sm"
-            style={{ backgroundColor: 'var(--color-accent)' }}
-          >H</span>
+          <BrandMark size={28} />
           <span className="font-bold text-[15px] tracking-tight" style={{ color: 'var(--color-fg)' }}>
             HackAgent
           </span>

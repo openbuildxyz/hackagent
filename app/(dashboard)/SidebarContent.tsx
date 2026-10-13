@@ -9,6 +9,7 @@ import ChangePasswordButton from './ChangePasswordButton'
 import { useLocale, useT } from '@/lib/i18n'
 import type { Locale } from '@/lib/i18n'
 import { canCreateEvents, canUseReviewerTools, isPlatformAdmin } from '@/lib/permissions'
+import BrandMark from '@/components/BrandMark'
 
 function NavItem({ href, icon, label, active }: { href: string; icon: React.ReactNode; label: string; active: boolean }) {
   return (
@@ -66,7 +67,7 @@ export default function SidebarContent({ email, credits, role = ['viewer'] }: { 
     >
       <div className="px-4 h-14 flex items-center border-b border-[var(--color-border)]">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <span className="w-6 h-6 rounded-md bg-[var(--color-accent)] flex items-center justify-center text-white font-black text-xs">H</span>
+          <BrandMark size={24} />
           <span className="font-bold text-[15px] tracking-tight text-[var(--color-fg)]">HackAgent</span>
         </Link>
       </div>
